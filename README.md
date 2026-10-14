@@ -7,7 +7,7 @@ A Jellyfin plugin (`com.penguinandwolf.pawfin`) that adds:
 3. **Next Up removal** – hide series/episodes from a user's Next Up list.
 
 All data is stored on the server in `<jellyfin data>/pawfin/`, so it is shared across every device.
-Supports Jellyfin 10.11 (.NET 9) and Jellyfin 12.2 (.NET 10).
+Supports Jellyfin 12.1 and newer (.NET 10).
 
 ## Installation
 
@@ -16,11 +16,10 @@ under **Dashboard > Plugins > Repositories**:
 
 | Jellyfin | Repository URL |
 |---|---|
-| 10.11 | `https://raw.githubusercontent.com/penguin-and-wolf/PawFinBE/main/manifest.json` |
-| 12.x | `https://raw.githubusercontent.com/penguin-and-wolf/PawFinBE/main/manifest-jf12.json` |
+| 12.1+ | `https://raw.githubusercontent.com/penguin-and-wolf/PawFinBE/main/manifest-jf12.json` |
 
 Then install **Pawfin Backend** from the catalog. Each release publishes separate
-builds and updates both manifests with the matching download and MD5 checksum.
+build and updates the Jellyfin 12.1+ manifest with its download and MD5 checksum.
 
 ## API
 

@@ -22,11 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Jellyfin 10.11
-            framework: net9.0
-            dotnet: 10.0.x
-            suffix: jf10.11
-          - name: Jellyfin 12
+          - name: Jellyfin 12.1+
             framework: net10.0
             dotnet: 10.0.x
             suffix: jf12
@@ -53,18 +49,10 @@ jobs:
           fi
           echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
 
-      - name: Select .NET 10 SDK
-        run: |
-          sed -i 's/"version": "9.0.100"/"version": "10.0.100"/' global.json
-
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ matrix.dotnet }}
-
-      - name: Select Jellyfin 12 build metadata
-        if: matrix.framework == 'net10.0'
-        run: cp build-jf12.yaml build.yaml
 
       - name: Build Jellyfin plugin
         id: jprm
@@ -109,7 +97,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" \
             > "$RUNNER_TEMP/release.json"
 
-      - name: Update Jellyfin 10.11 and Jellyfin 12 manifests
+      - name: Update Jellyfin 12.1+ manifest
         env:
           RELEASE_JSON: ${{ runner.temp }}/release.json
           RELEASE_DIRECTORY: ${{ runner.temp }}/release
@@ -121,7 +109,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add manifest.json manifest-jf12.json
+          git add manifest-jf12.json
           if git diff --cached --quiet; then
             echo "Plugin manifests are already up to date."
             exit 0

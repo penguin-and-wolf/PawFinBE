@@ -20,30 +20,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Jellyfin 10.11
-            framework: net9.0
-            dotnet: 10.0.x
-            metadata: build.yaml
-          - name: Jellyfin 12
+          - name: Jellyfin 12.1+
             framework: net10.0
             dotnet: 10.0.x
-            metadata: build-jf12.yaml
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Select .NET 10 SDK
-        run: |
-          sed -i 's/"version": "9.0.100"/"version": "10.0.100"/' global.json
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ matrix.dotnet }}
-
-      - name: Select build metadata
-        if: matrix.framework == 'net10.0'
-        run: cp build-jf12.yaml build.yaml
 
       - name: Build Jellyfin plugin
         uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d

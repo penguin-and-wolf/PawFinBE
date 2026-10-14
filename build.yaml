@@ -1,9 +1,9 @@
 ---
 name: "Pawfin Backend"
 guid: "7c1f3a52-9b0e-4d7e-8a65-2f4c9e1d3b70"
-version: "1.0.0.0"
-targetAbi: "10.11.0.0"
-framework: "net9.0"
+version: "1.0.1.0"
+targetAbi: "12.1.0.0"
+framework: "net10.0"
 overview: "Seasonals, collection themes/backgrounds and Next Up removal"
 description: >
   Adds date-based seasonal collections, custom images and themes for seasonals
@@ -13,4 +13,4 @@ owner: "penguin-and-wolf"
 artifacts:
 - "com.penguinandwolf.pawfin.dll"
 changelog: >
-  Adds seasonals, custom collection assets and themes, and Next Up removal.
+  Fixes Jellyfin 12.1 compatibility and seasonal item resolution.

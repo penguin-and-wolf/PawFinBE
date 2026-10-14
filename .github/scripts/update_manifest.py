@@ -12,8 +12,7 @@ def main():
         release = json.load(file)
 
     builds = {
-        "_jf10.11.zip": ("manifest.json", "10.11.0.0"),
-        "_jf12.zip": ("manifest-jf12.json", "12.2.0.0"),
+        "_jf12.zip": ("manifest-jf12.json", "12.1.0.0"),
     }
     found_abis = set()
 
@@ -77,9 +76,9 @@ def main():
             file.write("\n")
         found_abis.add(target_abi)
 
-    if found_abis != {"10.11.0.0", "12.2.0.0"}:
+    if found_abis != {"12.1.0.0"}:
         raise RuntimeError(
-            "Expected release ZIPs for both Jellyfin 10.11 and 12; "
+            "Expected a release ZIP targeting Jellyfin 12.1+; "
             f"found ABI targets: {sorted(found_abis)}."
         )
 

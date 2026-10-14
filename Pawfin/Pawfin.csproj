@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>com.penguinandwolf.pawfin</AssemblyName>
     <RootNamespace>PenguinAndWolf.Pawfin</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -12,20 +12,11 @@
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.5" >
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="12.1.0">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="Jellyfin.Model" Version="10.11.5">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <PackageReference Include="Jellyfin.Controller" Version="12.2.0">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Jellyfin.Model" Version="12.2.0">
+    <PackageReference Include="Jellyfin.Model" Version="12.1.0">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
   </ItemGroup>
