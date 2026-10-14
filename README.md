@@ -9,6 +9,17 @@ A Jellyfin plugin (`com.penguinandwolf.pawfin`) that adds:
 All data is stored on the server in `<jellyfin data>/pawfin/`, so it is shared across every device.
 Requires Jellyfin 10.11+ and .NET 9.
 
+## Installation
+
+After a GitHub release is published, add this plugin repository in Jellyfin under
+**Dashboard > Plugins > Repositories**:
+
+`https://raw.githubusercontent.com/penguin-and-wolf/PawFinBE/main/manifest.json`
+
+Then install **Pawfin Backend** from the catalog. Each published release updates
+the manifest with its download URL and SHA-256 checksum. The manifest has no
+installable versions until the first release is published.
+
 ## API
 
 All routes need an authenticated Jellyfin user. Write operations on seasonals/assets need an administrator.

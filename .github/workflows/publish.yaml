@@ -1,5 +1,8 @@
 name: '🚀 Publish Plugin'
 
+permissions:
+  contents: write
+
 on:
   release:
     types:
@@ -12,7 +15,65 @@ jobs:
     with:
       version: ${{ github.event.release.tag_name }}
       is-unstable: ${{ github.event.release.prerelease }}
+      dotnet-version: "9.0.x"
+      dotnet-target: "net9.0"
     secrets:
       deploy-host: ${{ secrets.DEPLOY_HOST }}
       deploy-user: ${{ secrets.DEPLOY_USER }}
       deploy-key: ${{ secrets.DEPLOY_KEY }}
+
+  update-manifest:
+    name: Update plugin repository manifest
+    needs: call
+    if: github.event_name == 'release' && github.event.action == 'released'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Read plugin build metadata
+        id: metadata
+        run: |
+          ruby -ryaml -e '
+            metadata = YAML.safe_load(File.read("build.yaml"))
+            File.open(ENV.fetch("GITHUB_OUTPUT"), "a") do |output|
+              output.puts "version=#{metadata.fetch("version")}"
+              output.puts "targetAbi=#{metadata.fetch("targetAbi")}"
+            end
+          '
+
+      - name: Download release package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          gh release download "$GITHUB_REF_NAME" \
+            --pattern '*.zip' \
+            --dir "$RUNNER_TEMP/release"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
+            > "$RUNNER_TEMP/release.json"
+
+      - name: Update manifest
+        env:
+          PLUGIN_VERSION: ${{ steps.metadata.outputs.version }}
+          TARGET_ABI: ${{ steps.metadata.outputs.targetAbi }}
+        run: |
+          python3 .github/scripts/update_manifest.py \
+            "$RUNNER_TEMP/release.json" \
+            "$RUNNER_TEMP/release"
+
+      - name: Publish manifest update
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          if git diff --cached --quiet; then
+            echo "Manifest is already up to date."
+            exit 0
+          fi
+          git commit -m "Update plugin manifest for ${{ steps.metadata.outputs.version }}"
+          git push origin "HEAD:$DEFAULT_BRANCH"

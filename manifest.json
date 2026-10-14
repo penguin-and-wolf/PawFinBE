@@ -1,0 +1,11 @@
+[
+  {
+    "guid": "7c1f3a52-9b0e-4d7e-8a65-2f4c9e1d3b70",
+    "name": "Pawfin Backend",
+    "overview": "Seasonals, collection themes and backgrounds, and Next Up removal.",
+    "description": "Adds date-based seasonal collections, custom images and themes for seasonals and collections, and controls for hiding items from users' Next Up lists.",
+    "owner": "penguin-and-wolf",
+    "category": "General",
+    "versions": []
+  }
+]

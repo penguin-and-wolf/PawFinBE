@@ -6,11 +6,11 @@ targetAbi: "10.11.0.0"
 framework: "net9.0"
 overview: "Seasonals, collection themes/backgrounds and Next Up removal"
 description: >
-  This is a longer description that can span more than one
-  line and include details about your plugin.
+  Adds date-based seasonal collections, custom images and themes for seasonals
+  and collections, and controls for hiding items from users' Next Up lists.
 category: "General"
-owner: "jellyfin"
+owner: "penguin-and-wolf"
 artifacts:
 - "com.penguinandwolf.pawfin.dll"
 changelog: >
-  changelog
+  Adds seasonals, custom collection assets and themes, and Next Up removal.
