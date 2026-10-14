@@ -68,13 +68,15 @@ public class NextUpController : ControllerBase
     /// </summary>
     /// <param name="startIndex">The first result to return.</param>
     /// <param name="limit">Maximum number of items.</param>
+    /// <param name="requestedUserId">Optional Jellyfin user ID for API-key requests without a user claim.</param>
     /// <returns>The Next Up episodes.</returns>
     [HttpGet]
     public ActionResult<QueryResult<BaseItemDto>> GetNextUp(
         [FromQuery] int startIndex = 0,
-        [FromQuery] int limit = 24)
+        [FromQuery] int limit = 24,
+        [FromQuery(Name = "userId")] Guid? requestedUserId = null)
     {
-        var userId = UserHelper.GetUserId(User);
+        var userId = ResolveUserId(requestedUserId);
         var stage = "resolve user";
         try
         {
@@ -118,19 +120,30 @@ public class NextUpController : ControllerBase
     /// <summary>
     /// Gets the ids hidden from Next Up.
     /// </summary>
+    /// <param name="requestedUserId">Optional Jellyfin user ID for API-key requests without a user claim.</param>
     /// <returns>The hidden ids.</returns>
     [HttpGet("Hidden")]
-    public ActionResult<IReadOnlyList<Guid>> GetHiddenIds() => GetHidden(UserHelper.GetUserId(User)).ToList();
+    public ActionResult<IReadOnlyList<Guid>> GetHiddenIds([FromQuery(Name = "userId")] Guid? requestedUserId = null)
+    {
+        var userId = ResolveUserId(requestedUserId);
+        if (userId == Guid.Empty)
+        {
+            return Unauthorized();
+        }
+
+        return GetHidden(userId).ToList();
+    }
 
     /// <summary>
     /// Removes a series (or a single episode) from Next Up.
     /// </summary>
     /// <param name="itemId">A series id to hide the whole show, or an episode id.</param>
+    /// <param name="requestedUserId">Optional Jellyfin user ID for API-key requests without a user claim.</param>
     /// <returns>No content.</returns>
     [HttpPost("Hidden/{itemId}")]
-    public ActionResult Hide([FromRoute] Guid itemId)
+    public ActionResult Hide([FromRoute] Guid itemId, [FromQuery(Name = "userId")] Guid? requestedUserId = null)
     {
-        var userId = UserHelper.GetUserId(User);
+        var userId = ResolveUserId(requestedUserId);
         if (userId == Guid.Empty)
         {
             return Unauthorized();
@@ -159,13 +172,25 @@ public class NextUpController : ControllerBase
     /// Puts an item back in Next Up.
     /// </summary>
     /// <param name="itemId">The item id.</param>
+    /// <param name="requestedUserId">Optional Jellyfin user ID for API-key requests without a user claim.</param>
     /// <returns>No content.</returns>
     [HttpDelete("Hidden/{itemId}")]
-    public ActionResult Unhide([FromRoute] Guid itemId)
+    public ActionResult Unhide([FromRoute] Guid itemId, [FromQuery(Name = "userId")] Guid? requestedUserId = null)
     {
-        var userId = UserHelper.GetUserId(User);
+        var userId = ResolveUserId(requestedUserId);
+        if (userId == Guid.Empty)
+        {
+            return Unauthorized();
+        }
+
         _store.Write(d => d.HiddenNextUp.TryGetValue(userId, out var set) && set.Remove(itemId));
         return NoContent();
+    }
+
+    private Guid ResolveUserId(Guid? requestedUserId)
+    {
+        var authenticatedUserId = UserHelper.GetUserId(User);
+        return authenticatedUserId != Guid.Empty ? authenticatedUserId : requestedUserId.GetValueOrDefault();
     }
 
     private HashSet<Guid> GetHidden(Guid userId)
