@@ -18,6 +18,7 @@ namespace PenguinAndWolf.Pawfin.Api;
 /// Lets users remove entries from their Next Up list. Stored on the server, so it applies on every device.
 /// </summary>
 [ApiController]
+[TypeFilter(typeof(PawfinApiExceptionFilter))]
 [Authorize]
 [Route("Pawfin/NextUp")]
 [Produces("application/json")]

@@ -16,11 +16,11 @@ namespace PenguinAndWolf.Pawfin.Api;
 /// Images, backgrounds and themes for seasonals and collections.
 /// </summary>
 [ApiController]
+[TypeFilter(typeof(PawfinApiExceptionFilter))]
 [Authorize]
 [Route("Pawfin/{ownerType}/{ownerId}")]
 public class AssetsController : ControllerBase
 {
-    private const string Elevation = "RequiresElevation";
     private const long MaxUpload = 512L * 1024 * 1024;
 
     private static readonly string[] _imageTypes =
@@ -80,14 +80,13 @@ public class AssetsController : ControllerBase
     /// <param name="imageType">The image type.</param>
     /// <returns>No content.</returns>
     [HttpPost("Images/{imageType}")]
-    [Authorize(Policy = Elevation)]
     [RequestSizeLimit(MaxUpload)]
     public async Task<ActionResult> SetImage([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] string imageType)
     {
         var type = _imageTypes.FirstOrDefault(t => t.Equals(imageType, StringComparison.OrdinalIgnoreCase));
         if (type is null)
         {
-            return BadRequest("Unknown image type. Use one of: " + string.Join(", ", _imageTypes));
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Unsupported image type", detail: "Use one of: " + string.Join(", ", _imageTypes));
         }
 
         return await Upload(ownerType, ownerId, "image/", (set, file) =>
@@ -124,7 +123,6 @@ public class AssetsController : ControllerBase
     /// <param name="imageType">The image type.</param>
     /// <returns>No content.</returns>
     [HttpDelete("Images/{imageType}")]
-    [Authorize(Policy = Elevation)]
     public ActionResult DeleteImage([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] string imageType)
     {
         return Modify(ownerType, ownerId, set =>
@@ -146,7 +144,6 @@ public class AssetsController : ControllerBase
     /// <param name="ownerId">The owner id.</param>
     /// <returns>No content.</returns>
     [HttpPost("Backdrops")]
-    [Authorize(Policy = Elevation)]
     [RequestSizeLimit(MaxUpload)]
     public Task<ActionResult> AddBackdrop([FromRoute] string ownerType, [FromRoute] Guid ownerId)
         => Upload(ownerType, ownerId, "image/", (set, file) => set.Backdrops.Add(file));
@@ -171,7 +168,6 @@ public class AssetsController : ControllerBase
     /// <param name="index">The backdrop index.</param>
     /// <returns>No content.</returns>
     [HttpDelete("Backdrops/{index}")]
-    [Authorize(Policy = Elevation)]
     public ActionResult DeleteBackdrop([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] int index)
         => DeleteIndexed(ownerType, ownerId, s => s.Backdrops, index);
 
@@ -182,7 +178,6 @@ public class AssetsController : ControllerBase
     /// <param name="ownerId">The owner id.</param>
     /// <returns>No content.</returns>
     [HttpPost("ThemeSongs")]
-    [Authorize(Policy = Elevation)]
     [RequestSizeLimit(MaxUpload)]
     public Task<ActionResult> AddThemeSong([FromRoute] string ownerType, [FromRoute] Guid ownerId)
         => Upload(ownerType, ownerId, "audio/", (set, file) => set.ThemeSongs.Add(file));
@@ -206,7 +201,6 @@ public class AssetsController : ControllerBase
     /// <param name="index">The theme index.</param>
     /// <returns>No content.</returns>
     [HttpDelete("ThemeSongs/{index}")]
-    [Authorize(Policy = Elevation)]
     public ActionResult DeleteThemeSong([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] int index)
         => DeleteIndexed(ownerType, ownerId, s => s.ThemeSongs, index);
 
@@ -217,7 +211,6 @@ public class AssetsController : ControllerBase
     /// <param name="ownerId">The owner id.</param>
     /// <returns>No content.</returns>
     [HttpPost("ThemeVideos")]
-    [Authorize(Policy = Elevation)]
     [RequestSizeLimit(MaxUpload)]
     public Task<ActionResult> AddThemeVideo([FromRoute] string ownerType, [FromRoute] Guid ownerId)
         => Upload(ownerType, ownerId, "video/", (set, file) => set.ThemeVideos.Add(file));
@@ -241,7 +234,6 @@ public class AssetsController : ControllerBase
     /// <param name="index">The theme index.</param>
     /// <returns>No content.</returns>
     [HttpDelete("ThemeVideos/{index}")]
-    [Authorize(Policy = Elevation)]
     public ActionResult DeleteThemeVideo([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] int index)
         => DeleteIndexed(ownerType, ownerId, s => s.ThemeVideos, index);
 
@@ -265,7 +257,7 @@ public class AssetsController : ControllerBase
         var contentType = (Request.ContentType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
         if (!contentType.StartsWith(contentTypePrefix, StringComparison.Ordinal))
         {
-            return BadRequest("Content-Type must start with " + contentTypePrefix);
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Unsupported asset type", detail: "Content-Type must start with " + contentTypePrefix);
         }
 
         if (FindSet(ownerType, ownerId) is null)

@@ -16,13 +16,12 @@ namespace PenguinAndWolf.Pawfin.Api;
 /// Manages seasonals.
 /// </summary>
 [ApiController]
+[TypeFilter(typeof(PawfinApiExceptionFilter))]
 [Authorize]
 [Route("Pawfin/Seasonals")]
 [Produces("application/json")]
 public class SeasonalsController : ControllerBase
 {
-    private const string Elevation = "RequiresElevation";
-
     private readonly PawfinStore _store;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
@@ -85,12 +84,11 @@ public class SeasonalsController : ControllerBase
     /// <param name="request">The seasonal.</param>
     /// <returns>The created seasonal.</returns>
     [HttpPost]
-    [Authorize(Policy = Elevation)]
     public ActionResult<SeasonalDto> Create([FromBody, BindRequired] SeasonalRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
-            return BadRequest("Name is required.");
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal", detail: "Name is required.");
         }
 
         var seasonal = new Seasonal { Name = request.Name.Trim() };
@@ -118,7 +116,6 @@ public class SeasonalsController : ControllerBase
     /// <param name="request">The changes.</param>
     /// <returns>The updated seasonal.</returns>
     [HttpPut("{id}")]
-    [Authorize(Policy = Elevation)]
     public ActionResult<SeasonalDto> Update([FromRoute] Guid id, [FromBody, BindRequired] SeasonalRequest request)
     {
         var updated = _store.Write(d =>
@@ -145,7 +142,6 @@ public class SeasonalsController : ControllerBase
     /// <param name="id">The seasonal id.</param>
     /// <returns>No content.</returns>
     [HttpDelete("{id}")]
-    [Authorize(Policy = Elevation)]
     public ActionResult Delete([FromRoute] Guid id)
     {
         var removed = _store.Write(d => d.Seasonals.RemoveAll(x => x.Id == id) > 0);
@@ -165,12 +161,11 @@ public class SeasonalsController : ControllerBase
     /// <param name="itemIds">The item ids.</param>
     /// <returns>The seasonal.</returns>
     [HttpPost("{id}/Items")]
-    [Authorize(Policy = Elevation)]
     public ActionResult<SeasonalDto> AddItems([FromRoute] Guid id, [FromQuery, BindRequired] Guid[] itemIds)
     {
         if (itemIds.Any(i => _libraryManager.GetItemById(i) is null))
         {
-            return BadRequest("One or more items do not exist.");
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal items", detail: "One or more item IDs do not exist in the Jellyfin library.");
         }
 
         var seasonal = _store.Write(d =>
@@ -196,7 +191,6 @@ public class SeasonalsController : ControllerBase
     /// <param name="itemIds">The item ids.</param>
     /// <returns>The seasonal.</returns>
     [HttpDelete("{id}/Items")]
-    [Authorize(Policy = Elevation)]
     public ActionResult<SeasonalDto> RemoveItems([FromRoute] Guid id, [FromQuery, BindRequired] Guid[] itemIds)
     {
         var seasonal = _store.Write(d =>
@@ -220,7 +214,6 @@ public class SeasonalsController : ControllerBase
     /// <param name="itemIds">The ids in desired order.</param>
     /// <returns>The seasonal.</returns>
     [HttpPost("{id}/Items/Order")]
-    [Authorize(Policy = Elevation)]
     public ActionResult<SeasonalDto> SetOrder([FromRoute] Guid id, [FromBody, BindRequired] Guid[] itemIds)
     {
         var seasonal = _store.Write(d =>
