@@ -24,7 +24,7 @@ jobs:
         include:
           - name: Jellyfin 10.11
             framework: net9.0
-            dotnet: 9.0.x
+            dotnet: 10.0.x
             suffix: jf10.11
           - name: Jellyfin 12
             framework: net10.0
@@ -53,8 +53,7 @@ jobs:
           fi
           echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
 
-      - name: Select .NET 10 SDK for Jellyfin 12
-        if: matrix.framework == 'net10.0'
+      - name: Select .NET 10 SDK
         run: |
           sed -i 's/"version": "9.0.100"/"version": "10.0.100"/' global.json
 
