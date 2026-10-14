@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using PenguinAndWolf.Pawfin.Model;
 using PenguinAndWolf.Pawfin.Services;
