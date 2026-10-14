@@ -7,6 +7,12 @@ on:
   release:
     types:
       - released
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing GitHub release tag to build and publish
+        required: true
+        type: string
 
 jobs:
   call:
@@ -22,11 +28,49 @@ jobs:
       deploy-user: ${{ secrets.DEPLOY_USER }}
       deploy-key: ${{ secrets.DEPLOY_KEY }}
 
+  manual-publish:
+    name: Build and publish selected release
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout selected release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build Jellyfin plugin
+        id: jprm
+        uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d
+        with:
+          dotnet-target: net9.0
+
+      - name: Upload package and checksums to the existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PACKAGE: ${{ steps.jprm.outputs.artifact }}
+        run: |
+          md5sum "$PACKAGE" > "$PACKAGE.md5"
+          sha256sum "$PACKAGE" > "$PACKAGE.sha256"
+          gh release upload "$RELEASE_TAG" \
+            "$PACKAGE" "$PACKAGE.md5" "$PACKAGE.sha256" \
+            --clobber
+
   update-manifest:
     name: Update plugin repository manifest
-    needs: call
-    if: github.event_name == 'release' && github.event.action == 'released'
+    needs: [call, manual-publish]
+    if: >-
+      always() &&
+      ((github.event_name == 'release' && github.event.action == 'released' && needs.call.result == 'success') ||
+       (github.event_name == 'workflow_dispatch' && needs.manual-publish.result == 'success'))
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v4
@@ -49,10 +93,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/release"
-          gh release download "$GITHUB_REF_NAME" \
+          gh release download "$RELEASE_TAG" \
             --pattern '*.zip' \
             --dir "$RUNNER_TEMP/release"
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" \
             > "$RUNNER_TEMP/release.json"
 
       - name: Update manifest
