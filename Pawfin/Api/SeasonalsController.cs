@@ -320,11 +320,18 @@ public class SeasonalsController : ControllerBase
 
     private List<MediaBrowser.Model.Dto.BaseItemDto> ResolveItems(Seasonal s)
     {
-        var user = _userManager.GetUserById(UserHelper.GetUserId(User));
+        var userId = UserHelper.GetUserId(User);
+        var user = userId == Guid.Empty ? null : _userManager.GetUserById(userId);
+        if (user is null)
+        {
+            _logger.LogWarning("Pawfin seasonal {SeasonalId} items could not be resolved because the authenticated Jellyfin user id is unavailable", s.Id);
+            return new List<MediaBrowser.Model.Dto.BaseItemDto>();
+        }
+
         var items = s.Items
             .OrderBy(e => e.Order)
             .Select(e => _libraryManager.GetItemById(e.ItemId))
-            .Where(i => i is not null && (user is null || i.IsVisible(user)))
+            .Where(i => i is not null && i.IsVisible(user))
             .Select(i => i!)
             .ToList();
 

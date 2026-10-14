@@ -15,7 +15,9 @@ public static class UserHelper
     /// <returns>The user id, or empty.</returns>
     public static Guid GetUserId(ClaimsPrincipal principal)
     {
-        var value = principal.FindFirst("Jellyfin-UserId")?.Value;
+        var value = principal.FindFirst("Jellyfin-UserId")?.Value
+            ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? principal.FindFirst("sub")?.Value;
         return Guid.TryParse(value, out var id) ? id : Guid.Empty;
     }
 }

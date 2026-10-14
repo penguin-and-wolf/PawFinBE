@@ -78,6 +78,11 @@ public class NextUpController : ControllerBase
         var stage = "resolve user";
         try
         {
+            if (userId == Guid.Empty)
+            {
+                return Unauthorized();
+            }
+
             var user = _userManager.GetUserById(userId);
             if (user is null)
             {
