@@ -11,9 +11,9 @@
         "version": "1.0.0.0",
         "changelog": "",
         "targetAbi": "12.2.0.0",
-        "sourceUrl": "https://github.com/penguin-and-wolf/PawFinBE/releases/download/0.7/pawfin-backend_1.0.0.0_jf12.zip",
-        "checksum": "39e8ba9617d5245c3de4dffb5c488fc7",
-        "timestamp": "2026-10-14T16:21:24Z"
+        "sourceUrl": "https://github.com/penguin-and-wolf/PawFinBE/releases/download/0.8/pawfin-backend_1.0.0.0_jf12.zip",
+        "checksum": "1d951a85ec0ad93ceb3519bb930a725e",
+        "timestamp": "2026-10-14T16:30:51Z"
       }
     ]
   }
