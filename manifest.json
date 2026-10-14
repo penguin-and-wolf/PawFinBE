@@ -6,6 +6,15 @@
     "description": "Adds date-based seasonal collections, custom images and themes for seasonals and collections, and controls for hiding items from users' Next Up lists.",
     "owner": "penguin-and-wolf",
     "category": "General",
-    "versions": []
+    "versions": [
+      {
+        "version": "1.0.0.0",
+        "changelog": "",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/penguin-and-wolf/PawFinBE/releases/download/pawfin-be/pawfin-backend_1.0.0.0.zip",
+        "checksum": "edf1e0e1d3cdd944d89f652d2dfacb3dbac4c96451757e0d239b93ae08e97ce0",
+        "timestamp": "2026-10-14T12:29:35Z"
+      }
+    ]
   }
 ]
