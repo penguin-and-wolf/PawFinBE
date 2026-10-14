@@ -69,6 +69,7 @@ public class SeasonalsController : ControllerBase
     /// <param name="activeOnly">Only return seasonals active today (or on <paramref name="date"/>).</param>
     /// <param name="date">Day used for the active check. Defaults to today.</param>
     /// <param name="includeItems">Resolve the ordered items.</param>
+    /// <param name="userId">Optional Jellyfin user ID used when the API-key request has no user claim.</param>
     /// <returns>The seasonals.</returns>
     [HttpGet]
     public ActionResult<IReadOnlyList<SeasonalDto>> GetSeasonals(
@@ -92,6 +93,7 @@ public class SeasonalsController : ControllerBase
     /// </summary>
     /// <param name="id">The seasonal id.</param>
     /// <param name="includeItems">Resolve the ordered items.</param>
+    /// <param name="userId">Optional Jellyfin user ID used when the API-key request has no user claim.</param>
     /// <returns>The seasonal.</returns>
     [HttpGet("{id}")]
     public ActionResult<SeasonalDto> GetSeasonal(

@@ -229,18 +229,29 @@ public class AssetsController : ControllerBase
         => ServeIndexed(ownerType, ownerId, s => s.ThemeVideos, index);
 
     /// <summary>Adds a trailer video. The request body is the raw video.</summary>
+    /// <param name="ownerType">Seasonals or Collections.</param>
+    /// <param name="ownerId">The owner id.</param>
+    /// <returns>No content.</returns>
     [HttpPost("Trailers")]
     [RequestSizeLimit(MaxUpload)]
     public Task<ActionResult> AddTrailer([FromRoute] string ownerType, [FromRoute] Guid ownerId)
         => Upload(ownerType, ownerId, "video/", (set, file) => set.Trailers.Add(file));
 
     /// <summary>Gets a trailer video.</summary>
+    /// <param name="ownerType">Seasonals or Collections.</param>
+    /// <param name="ownerId">The owner id.</param>
+    /// <param name="index">The trailer index.</param>
+    /// <returns>The trailer video.</returns>
     [HttpGet("Trailers/{index}")]
     [AllowAnonymous]
     public ActionResult GetTrailer([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] int index)
         => ServeIndexed(ownerType, ownerId, s => s.Trailers, index);
 
     /// <summary>Deletes a trailer video.</summary>
+    /// <param name="ownerType">Seasonals or Collections.</param>
+    /// <param name="ownerId">The owner id.</param>
+    /// <param name="index">The trailer index.</param>
+    /// <returns>No content.</returns>
     [HttpDelete("Trailers/{index}")]
     public ActionResult DeleteTrailer([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] int index)
         => DeleteIndexed(ownerType, ownerId, s => s.Trailers, index);
