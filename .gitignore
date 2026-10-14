@@ -1,0 +1,10 @@
+# .NET build outputs and NuGet restore state are machine-specific.
+**/bin/
+**/obj/
+**/.DS_Store
+
+# IDE files
+.vs/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
