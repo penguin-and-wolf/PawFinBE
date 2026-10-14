@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Pawfin/Pawfin.csproj" />
+  <Project Path="Pawfin.Tests/Pawfin.Tests.csproj" />
+</Solution>

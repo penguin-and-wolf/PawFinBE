@@ -1,0 +1,526 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>com.penguinandwolf.pawfin</name>
+    </assembly>
+    <members>
+        <member name="T:PenguinAndWolf.Pawfin.Api.AssetsController">
+            <summary>
+            Images, backgrounds and themes for seasonals and collections.
+            </summary>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.#ctor(PenguinAndWolf.Pawfin.Services.PawfinStore,MediaBrowser.Controller.Library.ILibraryManager)">
+            <summary>
+            Initializes a new instance of the <see cref="T:PenguinAndWolf.Pawfin.Api.AssetsController"/> class.
+            </summary>
+            <param name="store">The store.</param>
+            <param name="libraryManager">The library manager.</param>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.GetAssets(System.String,System.Guid)">
+            <summary>
+            Gets the assets of a seasonal or collection.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <returns>The assets.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.SetImage(System.String,System.Guid,System.String)">
+            <summary>
+            Uploads a single image (Primary, Logo, Banner, Thumb, Art, ...). The request body is the raw image.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="imageType">The image type.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.GetImage(System.String,System.Guid,System.String)">
+            <summary>
+            Gets a single image.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="imageType">The image type.</param>
+            <returns>The image.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.DeleteImage(System.String,System.Guid,System.String)">
+            <summary>
+            Deletes a single image.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="imageType">The image type.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.AddBackdrop(System.String,System.Guid)">
+            <summary>
+            Adds a background image. The request body is the raw image.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.GetBackdrop(System.String,System.Guid,System.Int32)">
+            <summary>
+            Gets a background image.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="index">The backdrop index.</param>
+            <returns>The image.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.DeleteBackdrop(System.String,System.Guid,System.Int32)">
+            <summary>
+            Deletes a background image.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="index">The backdrop index.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.AddThemeSong(System.String,System.Guid)">
+            <summary>
+            Adds a theme song. The request body is the raw audio.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.GetThemeSong(System.String,System.Guid,System.Int32)">
+            <summary>
+            Gets a theme song.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="index">The theme index.</param>
+            <returns>The audio.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.DeleteThemeSong(System.String,System.Guid,System.Int32)">
+            <summary>
+            Deletes a theme song.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="index">The theme index.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.AddThemeVideo(System.String,System.Guid)">
+            <summary>
+            Adds a theme video. The request body is the raw video.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.GetThemeVideo(System.String,System.Guid,System.Int32)">
+            <summary>
+            Gets a theme video.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="index">The theme index.</param>
+            <returns>The video.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.AssetsController.DeleteThemeVideo(System.String,System.Guid,System.Int32)">
+            <summary>
+            Deletes a theme video.
+            </summary>
+            <param name="ownerType">Seasonals or Collections.</param>
+            <param name="ownerId">The owner id.</param>
+            <param name="index">The theme index.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Api.NextUpController">
+            <summary>
+            Lets users remove entries from their Next Up list. Stored on the server, so it applies on every device.
+            </summary>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.NextUpController.#ctor(PenguinAndWolf.Pawfin.Services.PawfinStore,MediaBrowser.Controller.Library.ILibraryManager,MediaBrowser.Controller.Library.IUserManager,MediaBrowser.Controller.Dto.IDtoService,MediaBrowser.Controller.TV.ITVSeriesManager)">
+            <summary>
+            Initializes a new instance of the <see cref="T:PenguinAndWolf.Pawfin.Api.NextUpController"/> class.
+            </summary>
+            <param name="store">The store.</param>
+            <param name="libraryManager">The library manager.</param>
+            <param name="userManager">The user manager.</param>
+            <param name="dtoService">The dto service.</param>
+            <param name="tvSeriesManager">The series manager.</param>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.NextUpController.GetNextUp(System.Int32)">
+            <summary>
+            Gets the user's Next Up list without the hidden entries.
+            </summary>
+            <param name="limit">Maximum number of items.</param>
+            <returns>The Next Up episodes.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.NextUpController.GetHiddenIds">
+            <summary>
+            Gets the ids hidden from Next Up.
+            </summary>
+            <returns>The hidden ids.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.NextUpController.Hide(System.Guid)">
+            <summary>
+            Removes a series (or a single episode) from Next Up.
+            </summary>
+            <param name="itemId">A series id to hide the whole show, or an episode id.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.NextUpController.Unhide(System.Guid)">
+            <summary>
+            Puts an item back in Next Up.
+            </summary>
+            <param name="itemId">The item id.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Api.SeasonalsController">
+            <summary>
+            Manages seasonals.
+            </summary>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.#ctor(PenguinAndWolf.Pawfin.Services.PawfinStore,MediaBrowser.Controller.Library.ILibraryManager,MediaBrowser.Controller.Library.IUserManager,MediaBrowser.Controller.Dto.IDtoService)">
+            <summary>
+            Initializes a new instance of the <see cref="T:PenguinAndWolf.Pawfin.Api.SeasonalsController"/> class.
+            </summary>
+            <param name="store">The store.</param>
+            <param name="libraryManager">The library manager.</param>
+            <param name="userManager">The user manager.</param>
+            <param name="dtoService">The dto service.</param>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.GetSeasonals(System.Boolean,System.Nullable{System.DateTime},System.Boolean)">
+            <summary>
+            Gets all seasonals.
+            </summary>
+            <param name="activeOnly">Only return seasonals active today (or on <paramref name="date"/>).</param>
+            <param name="date">Day used for the active check. Defaults to today.</param>
+            <param name="includeItems">Resolve the ordered items.</param>
+            <returns>The seasonals.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.GetSeasonal(System.Guid,System.Boolean)">
+            <summary>
+            Gets a seasonal with its ordered items.
+            </summary>
+            <param name="id">The seasonal id.</param>
+            <param name="includeItems">Resolve the ordered items.</param>
+            <returns>The seasonal.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.Create(PenguinAndWolf.Pawfin.Model.SeasonalRequest)">
+            <summary>
+            Creates a seasonal.
+            </summary>
+            <param name="request">The seasonal.</param>
+            <returns>The created seasonal.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.Update(System.Guid,PenguinAndWolf.Pawfin.Model.SeasonalRequest)">
+            <summary>
+            Updates a seasonal.
+            </summary>
+            <param name="id">The seasonal id.</param>
+            <param name="request">The changes.</param>
+            <returns>The updated seasonal.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.Delete(System.Guid)">
+            <summary>
+            Deletes a seasonal and its stored images/themes.
+            </summary>
+            <param name="id">The seasonal id.</param>
+            <returns>No content.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.AddItems(System.Guid,System.Guid[])">
+            <summary>
+            Adds items (movies, series, episodes, collections) to a seasonal.
+            </summary>
+            <param name="id">The seasonal id.</param>
+            <param name="itemIds">The item ids.</param>
+            <returns>The seasonal.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.RemoveItems(System.Guid,System.Guid[])">
+            <summary>
+            Removes items from a seasonal.
+            </summary>
+            <param name="id">The seasonal id.</param>
+            <param name="itemIds">The item ids.</param>
+            <returns>The seasonal.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Api.SeasonalsController.SetOrder(System.Guid,System.Guid[])">
+            <summary>
+            Sets the explicit order of the items. Listed ids come first, the rest keep their relative order.
+            </summary>
+            <param name="id">The seasonal id.</param>
+            <param name="itemIds">The ids in desired order.</param>
+            <returns>The seasonal.</returns>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Configuration.PluginConfiguration">
+            <summary>
+            Plugin configuration. All data is stored server side so it is shared across devices.
+            </summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Model.AssetFile">
+            <summary>
+            A stored asset file.
+            </summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.AssetFile.FileName">
+            <summary>Gets or sets the stored file name.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.AssetFile.ContentType">
+            <summary>Gets or sets the content type.</summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Model.AssetSet">
+            <summary>
+            Images, backdrops and themes attached to a seasonal or collection.
+            File names refer to files stored in the plugin data folder.
+            </summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.AssetSet.Images">
+            <summary>Gets or sets single images by type (Primary, Logo, Banner, Thumb, Art, Disc, Box...).</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.AssetSet.Backdrops">
+            <summary>Gets or sets the background images.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.AssetSet.ThemeSongs">
+            <summary>Gets or sets the theme songs.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.AssetSet.ThemeVideos">
+            <summary>Gets or sets the theme videos.</summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Model.Seasonal">
+            <summary>
+            A collection-like grouping that is active during a date range.
+            </summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.Id">
+            <summary>Gets or sets the id.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.Name">
+            <summary>Gets or sets the name.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.Overview">
+            <summary>Gets or sets the overview.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.StartDate">
+            <summary>Gets or sets the first active day. Null means no lower bound.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.EndDate">
+            <summary>Gets or sets the last active day. Null with a start date means only that single day.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.Recurring">
+            <summary>Gets or sets a value indicating whether the range repeats every year (year is ignored).</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.OrderMode">
+            <summary>Gets or sets the order mode.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.Items">
+            <summary>Gets or sets the items.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.Assets">
+            <summary>Gets or sets the images, backdrops and themes.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.Seasonal.DateCreated">
+            <summary>Gets or sets the creation time.</summary>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Model.Seasonal.IsActiveOn(System.DateTime)">
+            <summary>
+            Returns whether the seasonal is active on a day.
+            </summary>
+            <param name="day">The day to test.</param>
+            <returns>True when active.</returns>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Model.SeasonalDto">
+            <summary>
+            A seasonal as returned by the API.
+            </summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.Id">
+            <summary>Gets or sets the id.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.Name">
+            <summary>Gets or sets the name.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.Overview">
+            <summary>Gets or sets the overview.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.StartDate">
+            <summary>Gets or sets the start date.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.EndDate">
+            <summary>Gets or sets the end date.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.Recurring">
+            <summary>Gets or sets a value indicating whether the range repeats yearly.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.IsActive">
+            <summary>Gets or sets a value indicating whether the seasonal is active today.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.OrderMode">
+            <summary>Gets or sets the order mode.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.ItemCount">
+            <summary>Gets or sets the number of items.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.Assets">
+            <summary>Gets or sets the assets.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalDto.Items">
+            <summary>Gets or sets the ordered, visible items. Null when not requested.</summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Model.SeasonalItem">
+            <summary>
+            An entry in a seasonal.
+            </summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalItem.ItemId">
+            <summary>Gets or sets the library item id (movie, series, episode, collection...).</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalItem.Order">
+            <summary>Gets or sets the position used by <see cref="F:PenguinAndWolf.Pawfin.Model.SeasonalOrderMode.Specific"/>.</summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Model.SeasonalOrderMode">
+            <summary>
+            How the items of a seasonal are ordered.
+            </summary>
+        </member>
+        <member name="F:PenguinAndWolf.Pawfin.Model.SeasonalOrderMode.Specific">
+            <summary>Order set explicitly by the user.</summary>
+        </member>
+        <member name="F:PenguinAndWolf.Pawfin.Model.SeasonalOrderMode.Random">
+            <summary>Shuffled on every request.</summary>
+        </member>
+        <member name="F:PenguinAndWolf.Pawfin.Model.SeasonalOrderMode.Chronological">
+            <summary>Oldest premiere date first.</summary>
+        </member>
+        <member name="F:PenguinAndWolf.Pawfin.Model.SeasonalOrderMode.ReverseChronological">
+            <summary>Newest premiere date first.</summary>
+        </member>
+        <member name="F:PenguinAndWolf.Pawfin.Model.SeasonalOrderMode.Alphabetical">
+            <summary>By sort name.</summary>
+        </member>
+        <member name="F:PenguinAndWolf.Pawfin.Model.SeasonalOrderMode.DateAdded">
+            <summary>Most recently added to the library first.</summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Model.SeasonalRequest">
+            <summary>
+            Create/update payload for a seasonal. Null properties are left unchanged on update.
+            </summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalRequest.Name">
+            <summary>Gets or sets the name.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalRequest.Overview">
+            <summary>Gets or sets the overview.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalRequest.StartDate">
+            <summary>Gets or sets the start date.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalRequest.EndDate">
+            <summary>Gets or sets the end date.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalRequest.Recurring">
+            <summary>Gets or sets a value indicating whether the range repeats yearly.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalRequest.OrderMode">
+            <summary>Gets or sets the order mode.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalRequest.ItemIds">
+            <summary>Gets or sets the initial item ids (create only).</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.SeasonalRequest.ClearDates">
+            <summary>Gets or sets a value indicating whether dates should be cleared (update only).</summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Model.StoreData">
+            <summary>
+            Everything persisted by the plugin.
+            </summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.StoreData.Seasonals">
+            <summary>Gets or sets the seasonals.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.StoreData.CollectionAssets">
+            <summary>Gets or sets assets for existing Jellyfin collections, by collection id.</summary>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Model.StoreData.HiddenNextUp">
+            <summary>Gets or sets the hidden Next Up entries per user (series or episode ids).</summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Plugin">
+            <summary>
+            The main plugin.
+            </summary>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Plugin.#ctor(MediaBrowser.Common.Configuration.IApplicationPaths,MediaBrowser.Model.Serialization.IXmlSerializer)">
+            <summary>
+            Initializes a new instance of the <see cref="T:PenguinAndWolf.Pawfin.Plugin"/> class.
+            </summary>
+            <param name="applicationPaths">Instance of the <see cref="T:MediaBrowser.Common.Configuration.IApplicationPaths"/> interface.</param>
+            <param name="xmlSerializer">Instance of the <see cref="T:MediaBrowser.Model.Serialization.IXmlSerializer"/> interface.</param>
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Plugin.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Plugin.Id">
+            <inheritdoc />
+        </member>
+        <member name="P:PenguinAndWolf.Pawfin.Plugin.Instance">
+            <summary>
+            Gets the current plugin instance.
+            </summary>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.PluginServiceRegistrator">
+            <summary>
+            Registers plugin services.
+            </summary>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.PluginServiceRegistrator.RegisterServices(Microsoft.Extensions.DependencyInjection.IServiceCollection,MediaBrowser.Controller.IServerApplicationHost)">
+            <inheritdoc />
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Services.PawfinStore">
+            <summary>
+            Server side persistence so data is shared by every device of a user.
+            </summary>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Services.PawfinStore.#ctor(MediaBrowser.Common.Configuration.IApplicationPaths)">
+            <summary>
+            Initializes a new instance of the <see cref="T:PenguinAndWolf.Pawfin.Services.PawfinStore"/> class.
+            </summary>
+            <param name="paths">The application paths.</param>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Services.PawfinStore.Write``1(System.Func{PenguinAndWolf.Pawfin.Model.StoreData,``0})">
+            <summary>
+            Runs a read/modify operation under lock and saves afterwards.
+            </summary>
+            <typeparam name="T">Result type.</typeparam>
+            <param name="action">The operation.</param>
+            <returns>The operation result.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Services.PawfinStore.Read``1(System.Func{PenguinAndWolf.Pawfin.Model.StoreData,``0})">
+            <summary>
+            Runs a read operation under lock.
+            </summary>
+            <typeparam name="T">Result type.</typeparam>
+            <param name="action">The operation.</param>
+            <returns>The operation result.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Services.PawfinStore.GetAssetDirectory(System.Guid)">
+            <summary>
+            Gets the directory holding an owner's asset files.
+            </summary>
+            <param name="ownerId">The seasonal or collection id.</param>
+            <returns>The directory path.</returns>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Services.PawfinStore.DeleteAssetDirectory(System.Guid)">
+            <summary>
+            Deletes an owner's asset directory.
+            </summary>
+            <param name="ownerId">The owner id.</param>
+        </member>
+        <member name="T:PenguinAndWolf.Pawfin.Services.UserHelper">
+            <summary>
+            Helpers for reading the authenticated Jellyfin user.
+            </summary>
+        </member>
+        <member name="M:PenguinAndWolf.Pawfin.Services.UserHelper.GetUserId(System.Security.Claims.ClaimsPrincipal)">
+            <summary>
+            Gets the id of the authenticated user.
+            </summary>
+            <param name="principal">The claims principal.</param>
+            <returns>The user id, or empty.</returns>
+        </member>
+    </members>
+</doc>

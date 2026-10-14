@@ -1,0 +1,16 @@
+---
+name: "Pawfin Backend"
+guid: "7c1f3a52-9b0e-4d7e-8a65-2f4c9e1d3b70"
+version: "1.0.0.0"
+targetAbi: "10.11.0.0"
+framework: "net9.0"
+overview: "Seasonals, collection themes/backgrounds and Next Up removal"
+description: >
+  This is a longer description that can span more than one
+  line and include details about your plugin.
+category: "General"
+owner: "jellyfin"
+artifacts:
+- "com.penguinandwolf.pawfin.dll"
+changelog: >
+  changelog
