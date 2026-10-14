@@ -29,6 +29,12 @@ public class SeasonalsController : ControllerBase
             new EventId(1, nameof(GetSeasonal)),
             "Pawfin seasonal request used invalid id {SeasonalId}");
 
+    private static readonly Action<ILogger, Guid, Exception?> _logSeasonalUserUnavailable =
+        LoggerMessage.Define<Guid>(
+            LogLevel.Warning,
+            new EventId(2, nameof(ResolveItems)),
+            "Pawfin seasonal {SeasonalId} items could not be resolved because the authenticated Jellyfin user id is unavailable");
+
     private readonly PawfinStore _store;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
@@ -324,7 +330,7 @@ public class SeasonalsController : ControllerBase
         var user = userId == Guid.Empty ? null : _userManager.GetUserById(userId);
         if (user is null)
         {
-            _logger.LogWarning("Pawfin seasonal {SeasonalId} items could not be resolved because the authenticated Jellyfin user id is unavailable", s.Id);
+            _logSeasonalUserUnavailable(_logger, s.Id, null);
             return new List<MediaBrowser.Model.Dto.BaseItemDto>();
         }
 
