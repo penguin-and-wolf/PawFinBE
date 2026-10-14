@@ -5,107 +5,103 @@ permissions:
 
 on:
   release:
-    types:
-      - released
+    types: [released]
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing GitHub release tag to build and publish
+        description: Existing GitHub release to rebuild from the current main branch
         required: true
         type: string
 
 jobs:
-  call:
-    if: github.event_name == 'release'
-    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/publish.yaml@master
-    with:
-      version: ${{ github.event.release.tag_name || github.ref_name }}
-      is-unstable: ${{ github.event.release.prerelease || false }}
-      dotnet-version: "9.0.x"
-      dotnet-target: "net9.0"
-    secrets:
-      deploy-host: ${{ secrets.DEPLOY_HOST }}
-      deploy-user: ${{ secrets.DEPLOY_USER }}
-      deploy-key: ${{ secrets.DEPLOY_KEY }}
-
-  manual-publish:
-    name: Build and publish selected release
-    if: github.event_name == 'workflow_dispatch'
+  build-and-publish:
+    name: Publish ${{ matrix.name }} build
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Jellyfin 10.11
+            framework: net9.0
+            dotnet: 9.0.x
+            suffix: jf10.11
+          - name: Jellyfin 12
+            framework: net10.0
+            dotnet: 10.0.x
+            suffix: jf12
     steps:
-      - name: Checkout workflow source
+      - name: Check out source
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || 'main' }}
 
-      - name: Resolve and fetch selected release tag
+      - name: Resolve release tag
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG_INPUT: ${{ inputs.release_tag }}
         run: |
-          resolved_tag="$(gh release view "$RELEASE_TAG" --json tagName --jq .tagName)"
-          if [ -z "$resolved_tag" ]; then
-            echo "No GitHub release found for '$RELEASE_TAG'. Enter the exact existing release tag." >&2
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            release_tag="$GITHUB_REF_NAME"
+          else
+            release_tag="$(gh release view "$RELEASE_TAG_INPUT" --json tagName --jq .tagName)"
+          fi
+          if [ -z "$release_tag" ]; then
+            echo "No GitHub release found for '$RELEASE_TAG_INPUT'. Enter the exact existing release tag." >&2
             exit 1
           fi
-          git fetch --depth=1 origin "refs/tags/$resolved_tag:refs/tags/$resolved_tag"
-          git checkout --detach "$resolved_tag"
-          echo "tag=$resolved_tag" >> "$GITHUB_OUTPUT"
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Select .NET 10 SDK for Jellyfin 12
+        if: matrix.framework == 'net10.0'
+        run: |
+          sed -i 's/"version": "9.0.100"/"version": "10.0.100"/' global.json
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: ${{ matrix.dotnet }}
+
+      - name: Select Jellyfin 12 build metadata
+        if: matrix.framework == 'net10.0'
+        run: cp build-jf12.yaml build.yaml
 
       - name: Build Jellyfin plugin
         id: jprm
         uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d
         with:
-          dotnet-target: net9.0
+          dotnet-target: ${{ matrix.framework }}
 
-      - name: Upload package and checksums to the existing release
+      - name: Upload package and checksums
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           PACKAGE: ${{ steps.jprm.outputs.artifact }}
+          PACKAGE_SUFFIX: ${{ matrix.suffix }}
         run: |
-          md5sum "$PACKAGE" > "$PACKAGE.md5"
-          sha256sum "$PACKAGE" > "$PACKAGE.sha256"
+          package="${PACKAGE%.zip}_${PACKAGE_SUFFIX}.zip"
+          mv "$PACKAGE" "$package"
+          md5sum "$package" > "$package.md5"
+          sha256sum "$package" > "$package.sha256"
           gh release upload "$RELEASE_TAG" \
-            "$PACKAGE" "$PACKAGE.md5" "$PACKAGE.sha256" \
+            "$package" "$package.md5" "$package.sha256" \
             --clobber
 
-  update-manifest:
-    name: Update plugin repository manifest
-    needs: [call, manual-publish]
-    if: >-
-      always() &&
-      ((github.event_name == 'release' && github.event.action == 'released' && needs.call.result == 'success') ||
-      (github.event_name == 'workflow_dispatch' && needs.manual-publish.result == 'success'))
+  update-manifests:
+    name: Update plugin manifests
+    needs: build-and-publish
     runs-on: ubuntu-latest
-    env:
-      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
     steps:
-      - name: Checkout default branch
+      - name: Check out default branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: main
 
-      - name: Read plugin build metadata
-        id: metadata
-        run: |
-          ruby -ryaml -e '
-            metadata = YAML.safe_load(File.read("build.yaml"))
-            File.open(ENV.fetch("GITHUB_OUTPUT"), "a") do |output|
-              output.puts "version=#{metadata.fetch("version")}"
-              output.puts "targetAbi=#{metadata.fetch("targetAbi")}"
-            end
-          '
-
-      - name: Download release package
+      - name: Download release packages and metadata
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         run: |
           mkdir -p "$RUNNER_TEMP/release"
           gh release download "$RELEASE_TAG" \
@@ -114,25 +110,22 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" \
             > "$RUNNER_TEMP/release.json"
 
-      - name: Update manifest
+      - name: Update Jellyfin 10.11 and Jellyfin 12 manifests
         env:
-          PLUGIN_VERSION: ${{ steps.metadata.outputs.version }}
-          TARGET_ABI: ${{ steps.metadata.outputs.targetAbi }}
-        run: |
-          python3 .github/scripts/update_manifest.py \
-            "$RUNNER_TEMP/release.json" \
-            "$RUNNER_TEMP/release"
+          RELEASE_JSON: ${{ runner.temp }}/release.json
+          RELEASE_DIRECTORY: ${{ runner.temp }}/release
+        run: python3 .github/scripts/update_manifest.py "$RELEASE_JSON" "$RELEASE_DIRECTORY"
 
-      - name: Publish manifest update
+      - name: Commit and publish manifests
         env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add manifest.json
+          git add manifest.json manifest-jf12.json
           if git diff --cached --quiet; then
-            echo "Manifest is already up to date."
+            echo "Plugin manifests are already up to date."
             exit 0
           fi
-          git commit -m "Update plugin manifest for ${{ steps.metadata.outputs.version }}"
-          git push origin "HEAD:$DEFAULT_BRANCH"
+          git commit -m "Update plugin manifests for $RELEASE_TAG"
+          git push origin HEAD:main
