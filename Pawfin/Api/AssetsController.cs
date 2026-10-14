@@ -42,6 +42,7 @@ public class AssetsController : ControllerBase
         ["audio/aac"] = ".aac",
         ["audio/mp4"] = ".m4a",
         ["video/mp4"] = ".mp4",
+        ["video/quicktime"] = ".mov",
         ["video/webm"] = ".webm",
         ["video/x-matroska"] = ".mkv"
     };
@@ -226,6 +227,23 @@ public class AssetsController : ControllerBase
     [HttpGet("ThemeVideos/{index}")]
     public ActionResult GetThemeVideo([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] int index)
         => ServeIndexed(ownerType, ownerId, s => s.ThemeVideos, index);
+
+    /// <summary>Adds a trailer video. The request body is the raw video.</summary>
+    [HttpPost("Trailers")]
+    [RequestSizeLimit(MaxUpload)]
+    public Task<ActionResult> AddTrailer([FromRoute] string ownerType, [FromRoute] Guid ownerId)
+        => Upload(ownerType, ownerId, "video/", (set, file) => set.Trailers.Add(file));
+
+    /// <summary>Gets a trailer video.</summary>
+    [HttpGet("Trailers/{index}")]
+    [AllowAnonymous]
+    public ActionResult GetTrailer([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] int index)
+        => ServeIndexed(ownerType, ownerId, s => s.Trailers, index);
+
+    /// <summary>Deletes a trailer video.</summary>
+    [HttpDelete("Trailers/{index}")]
+    public ActionResult DeleteTrailer([FromRoute] string ownerType, [FromRoute] Guid ownerId, [FromRoute] int index)
+        => DeleteIndexed(ownerType, ownerId, s => s.Trailers, index);
 
     /// <summary>
     /// Deletes a theme video.

@@ -74,14 +74,15 @@ public class SeasonalsController : ControllerBase
     public ActionResult<IReadOnlyList<SeasonalDto>> GetSeasonals(
         [FromQuery] bool activeOnly = false,
         [FromQuery] DateTime? date = null,
-        [FromQuery] bool includeItems = false)
+        [FromQuery] bool includeItems = false,
+        [FromQuery] Guid? userId = null)
     {
         var day = date ?? DateTime.Now;
         var seasonals = _store.Read(d => d.Seasonals.ToList());
         var result = seasonals
             .Where(s => !activeOnly || s.IsActiveOn(day))
             .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(s => ToDto(s, day, includeItems))
+            .Select(s => ToDto(s, day, includeItems, userId))
             .ToList();
         return result;
     }
@@ -93,7 +94,10 @@ public class SeasonalsController : ControllerBase
     /// <param name="includeItems">Resolve the ordered items.</param>
     /// <returns>The seasonal.</returns>
     [HttpGet("{id}")]
-    public ActionResult<SeasonalDto> GetSeasonal([FromRoute] string id, [FromQuery] bool includeItems = true)
+    public ActionResult<SeasonalDto> GetSeasonal(
+        [FromRoute] string id,
+        [FromQuery] bool includeItems = true,
+        [FromQuery] Guid? userId = null)
     {
         if (!Guid.TryParseExact(id, "N", out var seasonalId)
             && !Guid.TryParseExact(id, "D", out seasonalId))
@@ -103,7 +107,7 @@ public class SeasonalsController : ControllerBase
         }
 
         var seasonal = Find(seasonalId);
-        return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, includeItems);
+        return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, includeItems, userId);
     }
 
     /// <summary>
@@ -119,7 +123,12 @@ public class SeasonalsController : ControllerBase
             return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal", detail: "Name is required.");
         }
 
-        var seasonal = new Seasonal { Name = request.Name.Trim() };
+        if (request.StartDate is null)
+        {
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal", detail: "A start date is required.");
+        }
+
+        var seasonal = new Seasonal { Name = request.Name.Trim(), Recurring = true };
         Apply(seasonal, request);
         if (request.ItemIds is not null)
         {
@@ -134,7 +143,7 @@ public class SeasonalsController : ControllerBase
             d.Seasonals.Add(seasonal);
             return true;
         });
-        return CreatedAtAction(nameof(GetSeasonal), new { id = seasonal.Id }, ToDto(seasonal, DateTime.Now, false));
+        return CreatedAtAction(nameof(GetSeasonal), new { id = seasonal.Id }, ToDto(seasonal, DateTime.Now, false, null));
     }
 
     /// <summary>
@@ -146,6 +155,17 @@ public class SeasonalsController : ControllerBase
     [HttpPut("{id}")]
     public ActionResult<SeasonalDto> Update([FromRoute] Guid id, [FromBody, BindRequired] SeasonalRequest request)
     {
+        if (request.ClearDates && request.StartDate is null)
+        {
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal", detail: "A start date is required.");
+        }
+
+        var currentSeasonal = Find(id);
+        if (currentSeasonal is not null && currentSeasonal.StartDate is null && request.StartDate is null)
+        {
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal", detail: "A start date is required.");
+        }
+
         var updated = _store.Write(d =>
         {
             var s = d.Seasonals.FirstOrDefault(x => x.Id == id);
@@ -161,7 +181,7 @@ public class SeasonalsController : ControllerBase
 
             return s;
         });
-        return updated is null ? NotFound() : ToDto(updated, DateTime.Now, false);
+        return updated is null ? NotFound() : ToDto(updated, DateTime.Now, false, null);
     }
 
     /// <summary>
@@ -209,7 +229,7 @@ public class SeasonalsController : ControllerBase
 
             return s;
         });
-        return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, false);
+        return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, false, null);
     }
 
     /// <summary>
@@ -232,7 +252,7 @@ public class SeasonalsController : ControllerBase
 
             return s;
         });
-        return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, false);
+        return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, false, null);
     }
 
     /// <summary>
@@ -259,7 +279,7 @@ public class SeasonalsController : ControllerBase
 
             return s;
         });
-        return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, false);
+        return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, false, null);
     }
 
     private static void Renumber(Seasonal s)
@@ -293,10 +313,12 @@ public class SeasonalsController : ControllerBase
             s.EndDate = r.EndDate.Value.Date;
         }
 
-        if (r.Recurring is not null)
+        if (r.ClearEndDate)
         {
-            s.Recurring = r.Recurring.Value;
+            s.EndDate = null;
         }
+
+        s.Recurring = true;
 
         if (r.OrderMode is not null)
         {
@@ -306,7 +328,7 @@ public class SeasonalsController : ControllerBase
 
     private Seasonal? Find(Guid id) => _store.Read(d => d.Seasonals.FirstOrDefault(x => x.Id == id));
 
-    private SeasonalDto ToDto(Seasonal s, DateTime day, bool includeItems)
+    private SeasonalDto ToDto(Seasonal s, DateTime day, bool includeItems, Guid? requestedUserId)
     {
         return _store.Read(_ => new SeasonalDto
         {
@@ -320,13 +342,18 @@ public class SeasonalsController : ControllerBase
             OrderMode = s.OrderMode,
             ItemCount = s.Items.Count,
             Assets = s.Assets,
-            Items = includeItems ? ResolveItems(s) : null
+            Items = includeItems ? ResolveItems(s, requestedUserId) : null
         });
     }
 
-    private List<MediaBrowser.Model.Dto.BaseItemDto> ResolveItems(Seasonal s)
+    private List<MediaBrowser.Model.Dto.BaseItemDto> ResolveItems(Seasonal s, Guid? requestedUserId)
     {
         var userId = UserHelper.GetUserId(User);
+        if (userId == Guid.Empty && requestedUserId is not null)
+        {
+            userId = requestedUserId.Value;
+        }
+
         var user = userId == Guid.Empty ? null : _userManager.GetUserById(userId);
         if (user is null)
         {

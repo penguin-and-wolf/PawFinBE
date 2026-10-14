@@ -105,7 +105,8 @@ public class NextUpController : ControllerBase
                 .ToList();
 
             stage = "map Next Up items to DTOs";
-            return new QueryResult<BaseItemDto>(kept.Count, offset, _dtoService.GetBaseItemDtos(page, options, user));
+            var items = page.Select(item => _dtoService.GetBaseItemDto(item, options, user)).ToList();
+            return new QueryResult<BaseItemDto>(kept.Count, offset, items);
         }
         catch (Exception exception)
         {

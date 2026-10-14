@@ -20,4 +20,7 @@ public class AssetSet
 
     /// <summary>Gets or sets the theme videos.</summary>
     public List<AssetFile> ThemeVideos { get; set; } = [];
+
+    /// <summary>Gets or sets the trailer videos.</summary>
+    public List<AssetFile> Trailers { get; set; } = [];
 }

@@ -17,14 +17,14 @@ public class Seasonal
     /// <summary>Gets or sets the overview.</summary>
     public string? Overview { get; set; }
 
-    /// <summary>Gets or sets the first active day. Null means no lower bound.</summary>
+    /// <summary>Gets or sets the required first active month and day.</summary>
     public DateTime? StartDate { get; set; }
 
-    /// <summary>Gets or sets the last active day. Null with a start date means only that single day.</summary>
+    /// <summary>Gets or sets the last active month and day. Null means only the start day.</summary>
     public DateTime? EndDate { get; set; }
 
     /// <summary>Gets or sets a value indicating whether the range repeats every year (year is ignored).</summary>
-    public bool Recurring { get; set; }
+    public bool Recurring { get; set; } = true;
 
     /// <summary>Gets or sets the order mode.</summary>
     public SeasonalOrderMode OrderMode { get; set; } = SeasonalOrderMode.Specific;
@@ -45,24 +45,14 @@ public class Seasonal
     /// <returns>True when active.</returns>
     public bool IsActiveOn(DateTime day)
     {
-        if (StartDate is null && EndDate is null)
+        if (StartDate is null)
         {
-            return true;
+            return false;
         }
 
-        var start = (StartDate ?? EndDate!.Value).Date;
-        var end = (EndDate ?? StartDate!.Value).Date;
+        var start = StartDate.Value.Date;
+        var end = (EndDate ?? StartDate.Value).Date;
         var d = day.Date;
-
-        if (!Recurring)
-        {
-            if (StartDate is null)
-            {
-                return d <= end;
-            }
-
-            return EndDate is null ? d == start : d >= start && d <= end;
-        }
 
         var k = Key(d);
         var ks = Key(start);

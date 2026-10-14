@@ -30,4 +30,7 @@ public class SeasonalRequest
 
     /// <summary>Gets or sets a value indicating whether dates should be cleared (update only).</summary>
     public bool ClearDates { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the optional end date should be cleared.</summary>
+    public bool ClearEndDate { get; set; }
 }
