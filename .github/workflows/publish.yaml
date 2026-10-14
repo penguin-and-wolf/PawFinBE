@@ -33,10 +33,25 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout selected release tag
+      - name: Checkout workflow source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: main
+
+      - name: Resolve and fetch selected release tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          resolved_tag="$(gh release view "$RELEASE_TAG" --json tagName --jq .tagName)"
+          if [ -z "$resolved_tag" ]; then
+            echo "No GitHub release found for '$RELEASE_TAG'. Enter the exact existing release tag." >&2
+            exit 1
+          fi
+          git fetch --depth=1 origin "refs/tags/$resolved_tag:refs/tags/$resolved_tag"
+          git checkout --detach "$resolved_tag"
+          echo "tag=$resolved_tag" >> "$GITHUB_OUTPUT"
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -52,7 +67,7 @@ jobs:
       - name: Upload package and checksums to the existing release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
           PACKAGE: ${{ steps.jprm.outputs.artifact }}
         run: |
           md5sum "$PACKAGE" > "$PACKAGE.md5"
@@ -67,7 +82,7 @@ jobs:
     if: >-
       always() &&
       ((github.event_name == 'release' && github.event.action == 'released' && needs.call.result == 'success') ||
-       (github.event_name == 'workflow_dispatch' && needs.manual-publish.result == 'success'))
+      (github.event_name == 'workflow_dispatch' && needs.manual-publish.result == 'success'))
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
