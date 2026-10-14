@@ -10,6 +10,7 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using PenguinAndWolf.Pawfin.Services;
 
 namespace PenguinAndWolf.Pawfin.Api;
@@ -24,11 +25,18 @@ namespace PenguinAndWolf.Pawfin.Api;
 [Produces("application/json")]
 public class NextUpController : ControllerBase
 {
+    private static readonly Action<ILogger, Guid, string, Exception?> _logNextUpFailure =
+        LoggerMessage.Define<Guid, string>(
+            LogLevel.Error,
+            new EventId(1, nameof(GetNextUp)),
+            "Pawfin Next Up failed for user {UserId} during {Stage}");
+
     private readonly PawfinStore _store;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IDtoService _dtoService;
     private readonly ITVSeriesManager _tvSeriesManager;
+    private readonly ILogger<NextUpController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NextUpController"/> class.
@@ -38,44 +46,67 @@ public class NextUpController : ControllerBase
     /// <param name="userManager">The user manager.</param>
     /// <param name="dtoService">The dto service.</param>
     /// <param name="tvSeriesManager">The series manager.</param>
+    /// <param name="logger">The logger.</param>
     public NextUpController(
         PawfinStore store,
         ILibraryManager libraryManager,
         IUserManager userManager,
         IDtoService dtoService,
-        ITVSeriesManager tvSeriesManager)
+        ITVSeriesManager tvSeriesManager,
+        ILogger<NextUpController> logger)
     {
         _store = store;
         _libraryManager = libraryManager;
         _userManager = userManager;
         _dtoService = dtoService;
         _tvSeriesManager = tvSeriesManager;
+        _logger = logger;
     }
 
     /// <summary>
     /// Gets the user's Next Up list without the hidden entries.
     /// </summary>
+    /// <param name="startIndex">The first result to return.</param>
     /// <param name="limit">Maximum number of items.</param>
     /// <returns>The Next Up episodes.</returns>
     [HttpGet]
-    public ActionResult<QueryResult<BaseItemDto>> GetNextUp([FromQuery] int limit = 24)
+    public ActionResult<QueryResult<BaseItemDto>> GetNextUp(
+        [FromQuery] int startIndex = 0,
+        [FromQuery] int limit = 24)
     {
         var userId = UserHelper.GetUserId(User);
-        var user = _userManager.GetUserById(userId);
-        if (user is null)
+        var stage = "resolve user";
+        try
         {
-            return Unauthorized();
+            var user = _userManager.GetUserById(userId);
+            if (user is null)
+            {
+                return Unauthorized();
+            }
+
+            stage = "load hidden entries";
+            var hidden = GetHidden(userId);
+            var options = new DtoOptions(true);
+
+            stage = "query Jellyfin Next Up";
+            var next = _tvSeriesManager.GetNextUp(new NextUpQuery { User = user }, options);
+            var kept = next.Items
+                .Where(i => !hidden.Contains(i.Id) && !(i is Episode e && e.SeriesId != Guid.Empty && hidden.Contains(e.SeriesId)))
+                .ToList();
+            var offset = Math.Max(startIndex, 0);
+            var page = kept
+                .Skip(offset)
+                .Take(Math.Max(limit, 0))
+                .ToList();
+
+            stage = "map Next Up items to DTOs";
+            return new QueryResult<BaseItemDto>(kept.Count, offset, _dtoService.GetBaseItemDtos(page, options, user));
         }
-
-        var hidden = GetHidden(userId);
-        var options = new DtoOptions(true);
-        var next = _tvSeriesManager.GetNextUp(new NextUpQuery { User = user }, options);
-        var kept = next.Items
-            .Where(i => !hidden.Contains(i.Id) && !(i is Episode e && e.SeriesId != Guid.Empty && hidden.Contains(e.SeriesId)))
-            .Take(Math.Max(limit, 0))
-            .ToList();
-
-        return new QueryResult<BaseItemDto>(_dtoService.GetBaseItemDtos(kept, options, user));
+        catch (Exception exception)
+        {
+            _logNextUpFailure(_logger, userId, stage, exception);
+            throw;
+        }
     }
 
     /// <summary>

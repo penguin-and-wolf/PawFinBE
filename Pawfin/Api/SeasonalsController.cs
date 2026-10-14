@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.Extensions.Logging;
 using PenguinAndWolf.Pawfin.Model;
 using PenguinAndWolf.Pawfin.Services;
 
@@ -22,10 +23,17 @@ namespace PenguinAndWolf.Pawfin.Api;
 [Produces("application/json")]
 public class SeasonalsController : ControllerBase
 {
+    private static readonly Action<ILogger, string, Exception?> _logInvalidSeasonalId =
+        LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(1, nameof(GetSeasonal)),
+            "Pawfin seasonal request used invalid id {SeasonalId}");
+
     private readonly PawfinStore _store;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IDtoService _dtoService;
+    private readonly ILogger<SeasonalsController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SeasonalsController"/> class.
@@ -34,12 +42,19 @@ public class SeasonalsController : ControllerBase
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="userManager">The user manager.</param>
     /// <param name="dtoService">The dto service.</param>
-    public SeasonalsController(PawfinStore store, ILibraryManager libraryManager, IUserManager userManager, IDtoService dtoService)
+    /// <param name="logger">The logger.</param>
+    public SeasonalsController(
+        PawfinStore store,
+        ILibraryManager libraryManager,
+        IUserManager userManager,
+        IDtoService dtoService,
+        ILogger<SeasonalsController> logger)
     {
         _store = store;
         _libraryManager = libraryManager;
         _userManager = userManager;
         _dtoService = dtoService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -72,9 +87,16 @@ public class SeasonalsController : ControllerBase
     /// <param name="includeItems">Resolve the ordered items.</param>
     /// <returns>The seasonal.</returns>
     [HttpGet("{id}")]
-    public ActionResult<SeasonalDto> GetSeasonal([FromRoute] Guid id, [FromQuery] bool includeItems = true)
+    public ActionResult<SeasonalDto> GetSeasonal([FromRoute] string id, [FromQuery] bool includeItems = true)
     {
-        var seasonal = Find(id);
+        if (!Guid.TryParseExact(id, "N", out var seasonalId)
+            && !Guid.TryParseExact(id, "D", out seasonalId))
+        {
+            _logInvalidSeasonalId(_logger, id, null);
+            return BadRequest("The seasonal id must be a valid GUID.");
+        }
+
+        var seasonal = Find(seasonalId);
         return seasonal is null ? NotFound() : ToDto(seasonal, DateTime.Now, includeItems);
     }
 
