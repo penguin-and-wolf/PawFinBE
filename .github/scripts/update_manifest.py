@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import sys
 import zipfile
 from pathlib import Path
@@ -36,7 +35,7 @@ def main():
         metadata = {key.lower(): value for key, value in raw_metadata.items()}
 
         version = metadata["version"]
-        target_abi = metadata["targetAbi"]
+        target_abi = metadata["targetabi"]
         if target_abi != expected_abi:
             raise RuntimeError(
                 f"{asset['name']} declares ABI {target_abi}; expected {expected_abi}."
