@@ -13,8 +13,8 @@ jobs:
   call:
     uses: jellyfin/jellyfin-meta-plugins/.github/workflows/publish.yaml@master
     with:
-      version: ${{ github.event.release.tag_name }}
-      is-unstable: ${{ github.event.release.prerelease }}
+      version: ${{ github.event.release.tag_name || github.ref_name }}
+      is-unstable: ${{ github.event.release.prerelease || false }}
       dotnet-version: "9.0.x"
       dotnet-target: "net9.0"
     secrets:
