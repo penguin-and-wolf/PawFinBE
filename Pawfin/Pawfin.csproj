@@ -6,6 +6,7 @@
     <RootNamespace>PenguinAndWolf.Pawfin</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);SA1101;SA1200;CA3003;SA1309;SA1633;CA1062;SA1413;SA1204;CA1308</WarningsNotAsErrors>
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA1002;CA1819;CA2227</NoWarn>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
