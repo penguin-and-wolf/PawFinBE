@@ -30,7 +30,10 @@ public class MarathonsController : ControllerBase
     public ActionResult<IReadOnlyList<MarathonState>> GetAll([FromQuery(Name = "userId")] Guid? requestedUserId = null)
     {
         var userId = ResolveUserId(requestedUserId);
-        if (userId == Guid.Empty) return Unauthorized();
+        if (userId == Guid.Empty)
+        {
+            return Unauthorized();
+        }
 
         var states = _store.Write(data =>
         {
@@ -52,7 +55,11 @@ public class MarathonsController : ControllerBase
         [FromQuery(Name = "userId")] Guid? requestedUserId = null)
     {
         var userId = ResolveUserId(requestedUserId);
-        if (userId == Guid.Empty) return Unauthorized();
+        if (userId == Guid.Empty)
+        {
+            return Unauthorized();
+        }
+
         if (state.ItemIds is null || state.ItemIds.Count == 0 || state.ItemIds.Count > 500 ||
             state.ItemIds.Any(id => id == Guid.Empty) || state.ItemIds.Distinct().Count() != state.ItemIds.Count ||
             state.CurrentIndex < 0 || state.CurrentIndex >= state.ItemIds.Count ||
@@ -88,7 +95,10 @@ public class MarathonsController : ControllerBase
     public ActionResult Delete(Guid marathonId, [FromQuery(Name = "userId")] Guid? requestedUserId = null)
     {
         var userId = ResolveUserId(requestedUserId);
-        if (userId == Guid.Empty) return Unauthorized();
+        if (userId == Guid.Empty)
+        {
+            return Unauthorized();
+        }
 
         _store.Write(data =>
         {
@@ -96,8 +106,12 @@ public class MarathonsController : ControllerBase
             if (data.Marathons.TryGetValue(userId, out var entries))
             {
                 entries.Remove(marathonId);
-                if (entries.Count == 0) data.Marathons.Remove(userId);
+                if (entries.Count == 0)
+                {
+                    data.Marathons.Remove(userId);
+                }
             }
+
             return true;
         });
         return NoContent();
@@ -105,7 +119,11 @@ public class MarathonsController : ControllerBase
 
     private static void MigrateLegacyState(StoreData data, Guid userId)
     {
-        if (!data.ActiveMarathons.Remove(userId, out var legacy)) return;
+        if (!data.ActiveMarathons.Remove(userId, out var legacy))
+        {
+            return;
+        }
+
         if (!data.Marathons.TryGetValue(userId, out var entries))
         {
             entries = [];
