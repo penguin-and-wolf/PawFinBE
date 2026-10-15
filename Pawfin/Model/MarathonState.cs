@@ -6,6 +6,9 @@ namespace PenguinAndWolf.Pawfin.Model;
 /// <summary>Server-persisted playback position and order for one user's active marathon.</summary>
 public class MarathonState
 {
+    /// <summary>Gets or sets the identifier of this saved marathon.</summary>
+    public Guid MarathonId { get; set; }
+
     /// <summary>Gets or sets the ordered Jellyfin item ids.</summary>
     public List<Guid> ItemIds { get; set; } = [];
 

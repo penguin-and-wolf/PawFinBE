@@ -17,6 +17,9 @@ public class StoreData
     /// <summary>Gets or sets the hidden Next Up entries per user (series or episode ids).</summary>
     public Dictionary<Guid, HashSet<Guid>> HiddenNextUp { get; set; } = [];
 
-    /// <summary>Gets or sets the active marathon queue for each user.</summary>
+    /// <summary>Gets or sets the legacy single active marathon for older app versions.</summary>
     public Dictionary<Guid, MarathonState> ActiveMarathons { get; set; } = [];
+
+    /// <summary>Gets or sets all resumable marathons for each user, keyed by marathon id.</summary>
+    public Dictionary<Guid, Dictionary<Guid, MarathonState>> Marathons { get; set; } = [];
 }

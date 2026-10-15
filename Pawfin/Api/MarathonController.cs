@@ -34,7 +34,13 @@ public class MarathonController : ControllerBase
             return Unauthorized();
         }
 
-        var state = _store.Read(data => data.ActiveMarathons.TryGetValue(userId, out var value) ? value : null);
+        var state = _store.Read(data =>
+        {
+            if (data.ActiveMarathons.TryGetValue(userId, out var legacy)) return legacy;
+            return data.Marathons.TryGetValue(userId, out var entries)
+                ? entries.Values.OrderByDescending(value => value.UpdatedUtc).FirstOrDefault()
+                : null;
+        });
         if (state is null)
         {
             return NotFound();
@@ -85,7 +91,17 @@ public class MarathonController : ControllerBase
             return Unauthorized();
         }
 
-        _store.Write(data => data.ActiveMarathons.Remove(userId));
+        _store.Write(data =>
+        {
+            if (data.ActiveMarathons.Remove(userId)) return true;
+            if (data.Marathons.TryGetValue(userId, out var entries) && entries.Count > 0)
+            {
+                var latestId = entries.Values.OrderByDescending(value => value.UpdatedUtc).First().MarathonId;
+                entries.Remove(latestId);
+                if (entries.Count == 0) data.Marathons.Remove(userId);
+            }
+            return true;
+        });
         return NoContent();
     }
 
