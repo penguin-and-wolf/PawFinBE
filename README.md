@@ -5,6 +5,7 @@ A Jellyfin plugin (`com.penguinandwolf.pawfin`) that adds:
 1. **Seasonals** – collection-like groups holding movies, series, episodes and collections, active between two dates (or on a single day, optionally repeating yearly), with their own order mode.
 2. **Images, backgrounds and themes** for seasonals *and* existing collections.
 3. **Next Up removal** – hide series/episodes from a user's Next Up list.
+4. **Marathons** – save multiple ordered queues per user and resume each across devices.
 
 All data is stored on the server in `<jellyfin data>/pawfin/`, so it is shared across every device.
 Supports Jellyfin 12.1 and newer (.NET 10).
@@ -49,6 +50,12 @@ Uploads send the raw file as the body with a matching `Content-Type`.
 ### Next Up — `/Pawfin/NextUp`
 
 `GET /Pawfin/NextUp?limit=` (filtered list), `GET /Pawfin/NextUp/Hidden`, `POST|DELETE /Pawfin/NextUp/Hidden/{itemId}`.
+
+### Marathons — `/Pawfin/Marathons`
+
+`GET` lists the user's saved marathons, `PUT` creates or updates one using its
+`marathonId`, and `DELETE /Pawfin/Marathons/{marathonId}` removes only that queue.
+The legacy `/Pawfin/Marathon` routes remain available for older app versions.
 
 ## Build
 

@@ -1,16 +1,17 @@
 ---
 name: "Pawfin Backend"
 guid: "7c1f3a52-9b0e-4d7e-8a65-2f4c9e1d3b70"
-version: "1.0.1.0"
+version: "1.0.2.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
-overview: "Seasonals, collection themes/backgrounds and Next Up removal"
+overview: "Seasonals, collection themes/backgrounds, Next Up removal and resumable marathons"
 description: >
   Adds date-based seasonal collections, custom images and themes for seasonals
-  and collections, and controls for hiding items from users' Next Up lists.
+  and collections, controls for hiding items from users' Next Up lists, and
+  multiple resumable marathons per user.
 category: "General"
 owner: "penguin-and-wolf"
 artifacts:
 - "com.penguinandwolf.pawfin.dll"
 changelog: >
-  Fixes Jellyfin 12.1 compatibility and seasonal item resolution.
+  Adds multiple server-saved marathons per user for reliable resume across devices.
