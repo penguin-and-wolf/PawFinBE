@@ -25,7 +25,7 @@ public class AssetsController : ControllerBase
     private const long MaxUpload = 512L * 1024 * 1024;
 
     private static readonly string[] _imageTypes =
-        ["Primary", "Logo", "Banner", "Thumb", "Art", "Disc", "Box", "BoxRear", "Menu", "Screenshot", "Chapter", "Profile"];
+        ["Primary", "Logo", "Banner", "Thumb", "Art", "Disc", "Box", "BoxRear", "Menu", "Screenshot", "Chapter", "Profile", "Miniature"];
 
     private static readonly Dictionary<string, string> _extensions = new(StringComparer.OrdinalIgnoreCase)
     {
