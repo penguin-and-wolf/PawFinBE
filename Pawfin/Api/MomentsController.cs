@@ -47,6 +47,7 @@ public class MomentsController : ControllerBase
     /// <param name="libraryManager">The Jellyfin library manager.</param>
     /// <param name="userManager">The Jellyfin user manager.</param>
     /// <param name="dtoService">The Jellyfin DTO service.</param>
+    /// <param name="mediaEncoder">The Jellyfin media encoder used to read clip durations.</param>
     public MomentsController(PawfinStore store, ILibraryManager libraryManager, IUserManager userManager, IDtoService dtoService, IMediaEncoder mediaEncoder)
     {
         _store = store;
@@ -95,6 +96,7 @@ public class MomentsController : ControllerBase
                 .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
                 .Select(path => new { Path = path, Video = GetOrCreateMomentVideo(path) })
                 .DistinctBy(entry => entry.Video.Id)
+
                 // The folder controls chronology; the media filename is the clip's display name.
                 .OrderBy(entry => ParseOrder(Path.GetFileName(Path.GetDirectoryName(entry.Path) ?? entry.Path) ?? string.Empty))
                 .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase)
@@ -119,6 +121,11 @@ public class MomentsController : ControllerBase
         return Ok(groups);
     }
 
+    /// <summary>Gets a Moments clip's duration without probing clips while a group list loads.</summary>
+    /// <param name="itemId">The parent movie or series id.</param>
+    /// <param name="clipId">The Jellyfin clip id.</param>
+    /// <param name="cancellationToken">The request cancellation token.</param>
+    /// <returns>The clip's runtime in ticks.</returns>
     [HttpGet("{itemId:guid}/Clips/{clipId:guid}/Runtime")]
     public async Task<ActionResult<long>> GetClipRuntime(Guid itemId, Guid clipId, CancellationToken cancellationToken)
     {
@@ -148,48 +155,6 @@ public class MomentsController : ControllerBase
 
         var runtimeTicks = await GetClipRuntimeTicks(path, cancellationToken).ConfigureAwait(false);
         return runtimeTicks is > 0 ? Ok(runtimeTicks.Value) : NotFound();
-    }
-
-    private Task<long?> GetClipRuntimeTicks(string path, CancellationToken cancellationToken)
-    {
-        var file = new FileInfo(path);
-        var cacheKey = file.FullName + "|" + file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
-        return RuntimeCache.GetOrAdd(cacheKey, _ => ProbeClipRuntimeTicks(path, cacheKey, cancellationToken));
-    }
-
-    private async Task<long?> ProbeClipRuntimeTicks(string path, string cacheKey, CancellationToken cancellationToken)
-    {
-        var acquired = false;
-        try
-        {
-            await RuntimeProbeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            acquired = true;
-            var mediaInfo = await _mediaEncoder.GetMediaInfo(
-                new MediaInfoRequest
-                {
-                    MediaSource = new MediaSourceInfo
-                    {
-                        Path = path,
-                        Protocol = MediaProtocol.File,
-                    },
-                    MediaType = DlnaProfileType.Video,
-                    ExtractChapters = false,
-                },
-                cancellationToken).ConfigureAwait(false);
-            return mediaInfo.RunTimeTicks;
-        }
-        catch
-        {
-            RuntimeCache.TryRemove(cacheKey, out _);
-            return null;
-        }
-        finally
-        {
-            if (acquired)
-            {
-                RuntimeProbeSemaphore.Release();
-            }
-        }
     }
 
     /// <summary>Serves the optional Miniature image for a Moments group.</summary>
@@ -265,6 +230,58 @@ public class MomentsController : ControllerBase
                 .FirstOrDefault(path => GetOrCreateMomentVideo(path).Id == clipId);
         var image = clipPath is null ? null : FindAnyImage(Path.GetDirectoryName(clipPath));
         return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
+    }
+
+    private Task<long?> GetClipRuntimeTicks(string path, CancellationToken cancellationToken)
+    {
+        var file = new FileInfo(path);
+        var cacheKey = file.FullName + "|" + file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
+        return RuntimeCache.GetOrAdd(cacheKey, _ => ProbeClipRuntimeTicks(path, cacheKey, cancellationToken));
+    }
+
+    private async Task<long?> ProbeClipRuntimeTicks(string path, string cacheKey, CancellationToken cancellationToken)
+    {
+        var acquired = false;
+        try
+        {
+            await RuntimeProbeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            acquired = true;
+            var mediaInfo = await _mediaEncoder.GetMediaInfo(
+                new MediaInfoRequest
+                {
+                    MediaSource = new MediaSourceInfo
+                    {
+                        Path = path,
+                        Protocol = MediaProtocol.File,
+                    },
+                    MediaType = DlnaProfileType.Video,
+                    ExtractChapters = false,
+                },
+                cancellationToken).ConfigureAwait(false);
+            return mediaInfo.RunTimeTicks;
+        }
+        catch (OperationCanceledException)
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            throw;
+        }
+        catch (IOException)
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            return null;
+        }
+        finally
+        {
+            if (acquired)
+            {
+                RuntimeProbeSemaphore.Release();
+            }
+        }
     }
 
     private static string? FindMomentsRoot(string? itemPath)
