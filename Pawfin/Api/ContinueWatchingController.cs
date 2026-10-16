@@ -107,9 +107,11 @@ public class ContinueWatchingController : ControllerBase
             .Select(item => new { Item = item, UserData = _userDataManager.GetUserData(user, item) })
             .Where(entry => entry.UserData is { PlaybackPositionTicks: > 0, Played: false })
             .OrderByDescending(entry => entry.UserData?.LastPlayedDate)
-            .GroupBy(entry => momentPairings.TryGetValue(entry.Item.Id, out var pairing)
-                ? $"moment:{pairing}"
-                : $"item:{entry.Item.Id:D}", StringComparer.OrdinalIgnoreCase)
+            .GroupBy(
+                entry => momentPairings.TryGetValue(entry.Item.Id, out var pairing)
+                    ? $"moment:{pairing}"
+                    : $"item:{entry.Item.Id:D}",
+                StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .OrderByDescending(entry => entry.UserData?.LastPlayedDate)
             .Select(entry => entry.Item)
@@ -134,9 +136,17 @@ public class ContinueWatchingController : ControllerBase
 
     private static string? FindMomentsRoot(string? itemPath)
     {
-        if (string.IsNullOrWhiteSpace(itemPath)) return null;
+        if (string.IsNullOrWhiteSpace(itemPath))
+        {
+            return null;
+        }
+
         var directory = Directory.Exists(itemPath) ? itemPath : Path.GetDirectoryName(itemPath);
-        if (directory is null || !Directory.Exists(directory)) return null;
+        if (directory is null || !Directory.Exists(directory))
+        {
+            return null;
+        }
+
         var extras = Directory.EnumerateDirectories(directory).FirstOrDefault(path =>
             string.Equals(Path.GetFileName(path), "Extras", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(Path.GetFileName(path), "Extra's", StringComparison.OrdinalIgnoreCase));
