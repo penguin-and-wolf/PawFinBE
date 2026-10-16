@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -83,6 +84,7 @@ public class MomentsController : ControllerBase
                 .Where(item => item.MediaType == Jellyfin.Data.Enums.MediaType.Video && IsWithin(item.Path, momentsRoot))
                 .ToList();
         }
+
         var groups = Directory.EnumerateDirectories(momentsRoot)
             .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
             .Select(groupPath =>
@@ -98,7 +100,7 @@ public class MomentsController : ControllerBase
                 {
                     Id = StableId(parent.Id, groupPath),
                     Name = Path.GetFileName(groupPath) ?? string.Empty,
-                    MiniatureUrl = FindMiniature(groupPath) is null ? null : $"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Miniature",
+                    MiniatureUrl = FindMiniature(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Miniature", UriKind.Relative),
                     Clips = clips,
                 };
             })
@@ -171,7 +173,7 @@ public class MomentsController : ControllerBase
     {
         var match = ClipOrder.Match(value);
         return match.Success
-            ? (int.Parse(match.Groups["season"].Value), int.Parse(match.Groups["episode"].Value), int.Parse(match.Groups["part"].Value))
+            ? (int.Parse(match.Groups["season"].Value, CultureInfo.InvariantCulture), int.Parse(match.Groups["episode"].Value, CultureInfo.InvariantCulture), int.Parse(match.Groups["part"].Value, CultureInfo.InvariantCulture))
             : (int.MaxValue, int.MaxValue, int.MaxValue);
     }
 

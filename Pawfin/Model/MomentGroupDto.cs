@@ -14,7 +14,7 @@ public class MomentGroupDto
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the URL for the group's optional Miniature image.</summary>
-    public string? MiniatureUrl { get; set; }
+    public Uri? MiniatureUrl { get; set; }
 
     /// <summary>Gets or sets the ordered clips in the group.</summary>
     public List<BaseItemDto> Clips { get; set; } = [];
