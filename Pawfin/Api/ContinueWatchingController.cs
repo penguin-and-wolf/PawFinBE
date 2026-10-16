@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -59,7 +60,7 @@ public class ContinueWatchingController : ControllerBase
             IsResumable = true,
         };
         var resumable = _libraryManager.GetItemList(query)
-            .Where(item => string.Equals(item.MediaType, "Video", StringComparison.OrdinalIgnoreCase))
+            .Where(item => item.MediaType == MediaType.Video)
             .Where(item => _userDataManager.GetUserData(user, item).PlaybackPositionTicks > 0 && !_userDataManager.GetUserData(user, item).Played)
             .OrderByDescending(item => _userDataManager.GetUserData(user, item).LastPlayedDate)
             .ToList();
