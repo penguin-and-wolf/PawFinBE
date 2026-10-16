@@ -56,6 +56,7 @@ public class AssetsController : ControllerBase
     /// </summary>
     /// <param name="store">The store.</param>
     /// <param name="libraryManager">The library manager.</param>
+    /// <param name="userManager">The Jellyfin user manager.</param>
     public AssetsController(PawfinStore store, ILibraryManager libraryManager, IUserManager userManager)
     {
         _store = store;

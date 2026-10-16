@@ -1,5 +1,7 @@
 using System;
 using System.Security.Claims;
+using Jellyfin.Data;
+using Jellyfin.Database.Implementations.Enums;
 using MediaBrowser.Controller.Library;
 
 namespace PenguinAndWolf.Pawfin.Services;
@@ -31,6 +33,7 @@ public static class UserHelper
     public static bool IsAdministrator(ClaimsPrincipal principal, IUserManager userManager)
     {
         var userId = GetUserId(principal);
-        return userId != Guid.Empty && userManager.GetUserById(userId)?.Policy.IsAdministrator == true;
+        var user = userId == Guid.Empty ? null : userManager.GetUserById(userId);
+        return user?.HasPermission(PermissionKind.IsAdministrator) == true;
     }
 }

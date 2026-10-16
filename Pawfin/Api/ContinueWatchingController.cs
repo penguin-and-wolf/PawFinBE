@@ -4,7 +4,6 @@ using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
-using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,17 +21,26 @@ public class ContinueWatchingController : ControllerBase
 {
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
+    private readonly IUserDataManager _userDataManager;
     private readonly IDtoService _dtoService;
 
     /// <summary>Initializes a new instance of the <see cref="ContinueWatchingController"/> class.</summary>
-    public ContinueWatchingController(ILibraryManager libraryManager, IUserManager userManager, IDtoService dtoService)
+    /// <param name="libraryManager">The Jellyfin library manager.</param>
+    /// <param name="userManager">The Jellyfin user manager.</param>
+    /// <param name="userDataManager">The Jellyfin user data manager.</param>
+    /// <param name="dtoService">The Jellyfin DTO service.</param>
+    public ContinueWatchingController(ILibraryManager libraryManager, IUserManager userManager, IUserDataManager userDataManager, IDtoService dtoService)
     {
         _libraryManager = libraryManager;
         _userManager = userManager;
+        _userDataManager = userDataManager;
         _dtoService = dtoService;
     }
 
     /// <summary>Gets the authenticated user's resumable video items.</summary>
+    /// <param name="startIndex">The first result to return.</param>
+    /// <param name="limit">The maximum number of results to return.</param>
+    /// <returns>The resumable video items.</returns>
     [HttpGet]
     public ActionResult<QueryResult<BaseItemDto>> Get([FromQuery] int startIndex = 0, [FromQuery] int limit = 100)
     {
@@ -49,11 +57,11 @@ public class ContinueWatchingController : ControllerBase
         {
             Recursive = true,
             IsResumable = true,
-            MediaTypes = [MediaType.Video],
         };
         var resumable = _libraryManager.GetItemList(query)
-            .Where(item => item.GetUserData(user).PlaybackPositionTicks > 0 && !item.GetUserData(user).Played)
-            .OrderByDescending(item => item.GetUserData(user).LastPlayedDate)
+            .Where(item => string.Equals(item.MediaType, "Video", StringComparison.OrdinalIgnoreCase))
+            .Where(item => _userDataManager.GetUserData(user, item).PlaybackPositionTicks > 0 && !_userDataManager.GetUserData(user, item).Played)
+            .OrderByDescending(item => _userDataManager.GetUserData(user, item).LastPlayedDate)
             .ToList();
         var page = resumable.Skip(offset).Take(Math.Clamp(limit, 0, 500))
             .Select(item => _dtoService.GetBaseItemDto(item, options, user)).ToList();
