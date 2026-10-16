@@ -91,14 +91,11 @@ public class ContinueWatchingController : ControllerBase
                 foreach (var path in Directory.EnumerateFiles(momentsRoot, "*", SearchOption.AllDirectories)
                     .Where(path => VideoExtensions.Contains(Path.GetExtension(path))))
                 {
-                    var clip = _libraryManager.FindByPath(path, false);
-                    if (clip is not null)
-                    {
-                        var relative = Path.GetRelativePath(momentsRoot, path);
-                        var groupName = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
-                        momentPairings[clip.Id] = $"{parent.Id:D}:{groupName}";
-                        resumableItems.TryAdd(clip.Id, clip);
-                    }
+                    var clip = GetOrCreateMomentVideo(path);
+                    var relative = Path.GetRelativePath(momentsRoot, path);
+                    var groupName = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+                    momentPairings[clip.Id] = $"{parent.Id:D}:{groupName}";
+                    resumableItems.TryAdd(clip.Id, clip);
                 }
             }
         }
@@ -152,5 +149,33 @@ public class ContinueWatchingController : ControllerBase
             string.Equals(Path.GetFileName(path), "Extra's", StringComparison.OrdinalIgnoreCase));
         return extras is null ? null : Directory.EnumerateDirectories(extras)
             .FirstOrDefault(path => string.Equals(Path.GetFileName(path), "Moments", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private BaseItem GetOrCreateMomentVideo(string path)
+    {
+        var existing = _libraryManager.FindByPath(path, false);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var file = new FileInfo(path);
+        var id = _libraryManager.GetNewItemId(file.FullName, typeof(Video));
+        existing = _libraryManager.GetItemById(id);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var video = new Video
+        {
+            Id = id,
+            Name = Path.GetFileNameWithoutExtension(file.Name),
+            Path = file.FullName,
+            DateCreated = file.CreationTimeUtc,
+            DateModified = file.LastWriteTimeUtc,
+        };
+        _libraryManager.CreateItem(video, null);
+        return _libraryManager.GetItemById(id) ?? video;
     }
 }
