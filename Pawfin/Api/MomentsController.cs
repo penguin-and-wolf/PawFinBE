@@ -25,7 +25,7 @@ namespace PenguinAndWolf.Pawfin.Api;
 public class MomentsController : ControllerBase
 {
     private static readonly Regex ClipOrder = new("S(?<season>\\d+)E(?<episode>\\d+)P(?<part>\\d+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
+    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase) { ".bmp", ".gif", ".jpg", ".jpeg", ".png", ".webp" };
     private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase) { ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".webm", ".wmv" };
     private readonly PawfinStore _store;
     private readonly ILibraryManager _libraryManager;
@@ -80,20 +80,25 @@ public class MomentsController : ControllerBase
             .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
             .Select(groupPath =>
             {
-                var clips = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
+                var clipItems = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
                     .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
                     .Select(GetOrCreateMomentVideo)
                     .DistinctBy(video => video.Id)
                     .OrderBy(video => ParseOrder(video.Path ?? video.Name))
                     .ThenBy(video => Path.GetFileName(video.Path), StringComparer.OrdinalIgnoreCase)
-                    .Select(item => _dtoService.GetBaseItemDto(item, options, user))
                     .ToList();
                 return new MomentGroupDto
                 {
                     Id = StableId(parent.Id, groupPath),
                     Name = Path.GetFileName(groupPath) ?? string.Empty,
                     MiniatureUrl = FindMiniature(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Miniature", UriKind.Relative),
-                    Clips = clips,
+                    ClipImageUrls = clipItems
+                        .Where(video => FindAnyImage(Path.GetDirectoryName(video.Path ?? string.Empty)) is not null)
+                        .ToDictionary(
+                            video => video.Id.ToString("D", CultureInfo.InvariantCulture),
+                            video => new Uri($"/Pawfin/Moments/{parent.Id}/Clips/{video.Id}/Image", UriKind.Relative),
+                            StringComparer.OrdinalIgnoreCase),
+                    Clips = clipItems.Select(video => _dtoService.GetBaseItemDto(video, options, user)).ToList(),
                 };
             })
             .ToList();
@@ -117,7 +122,32 @@ public class MomentsController : ControllerBase
         var momentsRoot = parent is null ? null : FindMomentsRoot(parent.Path);
         var groupPath = momentsRoot is null ? null : Directory.EnumerateDirectories(momentsRoot)
             .FirstOrDefault(path => StableId(itemId, path) == groupId);
-        var image = groupPath is null ? null : FindMiniature(groupPath);
+        var image = groupPath is null ? null : FindAnyImage(groupPath);
+        return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
+    }
+
+    /// <summary>Serves an image stored beside a Moments clip.</summary>
+    /// <param name="itemId">The parent movie or series id.</param>
+    /// <param name="clipId">The Jellyfin clip id.</param>
+    /// <returns>The clip image.</returns>
+    [HttpGet("{itemId:guid}/Clips/{clipId:guid}/Image")]
+    public IActionResult GetClipImage(Guid itemId, Guid clipId)
+    {
+        var userId = UserHelper.GetUserId(User);
+        if (userId == Guid.Empty || !_store.Read(data => data.MomentAllowedUsers.Contains(userId)))
+        {
+            return Forbid();
+        }
+
+        var parent = _libraryManager.GetItemById(itemId);
+        var momentsRoot = parent is null ? null : FindMomentsRoot(parent.Path);
+        var clip = _libraryManager.GetItemById(clipId);
+        if (momentsRoot is null || clip?.Path is null || !IsWithin(clip.Path, momentsRoot))
+        {
+            return NotFound();
+        }
+
+        var image = FindAnyImage(Path.GetDirectoryName(clip.Path));
         return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
     }
 
@@ -168,12 +198,32 @@ public class MomentsController : ControllerBase
         return _libraryManager.GetItemById(id) ?? video;
     }
 
-    private static string? FindMiniature(string directory) => Directory.EnumerateFiles(directory)
-        .FirstOrDefault(IsMiniature)
-        ?? Directory.EnumerateDirectories(directory)
+    private static string? FindMiniature(string directory) => FindAnyImage(directory);
+
+    private static string? FindAnyImage(string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        var files = Directory.EnumerateFiles(directory).Where(path => ImageExtensions.Contains(Path.GetExtension(path))).ToList();
+        var preferred = files.FirstOrDefault(IsMiniature);
+        if (preferred is not null)
+        {
+            return preferred;
+        }
+
+        if (files.Count > 0)
+        {
+            return files.OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase).First();
+        }
+
+        return Directory.EnumerateDirectories(directory)
             .OrderBy(path => ParseOrder(Path.GetFileName(path) ?? string.Empty))
-            .SelectMany(Directory.EnumerateFiles)
-            .FirstOrDefault(IsMiniature);
+            .Select(FindAnyImage)
+            .FirstOrDefault(path => path is not null);
+    }
 
     private static bool IsMiniature(string path) =>
         (string.Equals(Path.GetFileNameWithoutExtension(path), "Miniature", StringComparison.OrdinalIgnoreCase) ||
@@ -201,6 +251,8 @@ public class MomentsController : ControllerBase
 
     private static string ContentTypeFor(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {
+        ".bmp" => "image/bmp",
+        ".gif" => "image/gif",
         ".png" => "image/png",
         ".webp" => "image/webp",
         _ => "image/jpeg",
