@@ -1,14 +1,21 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.MediaEncoding;
+using MediaBrowser.Model.Dlna;
 using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.MediaInfo;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PenguinAndWolf.Pawfin.Model;
@@ -27,22 +34,26 @@ public class MomentsController : ControllerBase
     private static readonly Regex ClipOrder = new("S(?<season>\\d+)E(?<episode>\\d+)P(?<part>\\d+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase) { ".bmp", ".gif", ".jpg", ".jpeg", ".png", ".webp" };
     private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase) { ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".webm", ".wmv" };
+    private static readonly ConcurrentDictionary<string, Task<long?>> RuntimeCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly SemaphoreSlim RuntimeProbeSemaphore = new(2, 2);
     private readonly PawfinStore _store;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IDtoService _dtoService;
+    private readonly IMediaEncoder _mediaEncoder;
 
     /// <summary>Initializes a new instance of the <see cref="MomentsController"/> class.</summary>
     /// <param name="store">The Pawfin data store.</param>
     /// <param name="libraryManager">The Jellyfin library manager.</param>
     /// <param name="userManager">The Jellyfin user manager.</param>
     /// <param name="dtoService">The Jellyfin DTO service.</param>
-    public MomentsController(PawfinStore store, ILibraryManager libraryManager, IUserManager userManager, IDtoService dtoService)
+    public MomentsController(PawfinStore store, ILibraryManager libraryManager, IUserManager userManager, IDtoService dtoService, IMediaEncoder mediaEncoder)
     {
         _store = store;
         _libraryManager = libraryManager;
         _userManager = userManager;
         _dtoService = dtoService;
+        _mediaEncoder = mediaEncoder;
     }
 
     /// <summary>Gets Moments groups for a movie or series the current user may access.</summary>
@@ -76,34 +87,109 @@ public class MomentsController : ControllerBase
         }
 
         var options = new DtoOptions(true);
-        var groups = Directory.EnumerateDirectories(momentsRoot)
-            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
-            .Select(groupPath =>
+        var groups = new List<MomentGroupDto>();
+        foreach (var groupPath in Directory.EnumerateDirectories(momentsRoot)
+            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase))
+        {
+            var clipEntries = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
+                .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
+                .Select(path => new { Path = path, Video = GetOrCreateMomentVideo(path) })
+                .DistinctBy(entry => entry.Video.Id)
+                // The folder controls chronology; the media filename is the clip's display name.
+                .OrderBy(entry => ParseOrder(Path.GetFileName(Path.GetDirectoryName(entry.Path) ?? entry.Path) ?? string.Empty))
+                .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            groups.Add(new MomentGroupDto
             {
-                var clipEntries = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
-                    .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
-                    .Select(path => new { Path = path, Video = GetOrCreateMomentVideo(path) })
-                    .DistinctBy(entry => entry.Video.Id)
-                    .OrderBy(entry => ParseOrder(entry.Path))
-                    .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                return new MomentGroupDto
-                {
-                    Id = StableId(parent.Id, groupPath),
-                    Name = Path.GetFileName(groupPath) ?? string.Empty,
-                    MiniatureUrl = FindMiniature(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Miniature", UriKind.Relative),
-                    PrimaryUrl = FindPrimary(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Primary", UriKind.Relative),
-                    ClipImageUrls = clipEntries
-                        .Where(entry => FindAnyImage(Path.GetDirectoryName(entry.Path)) is not null)
-                        .ToDictionary(
-                            entry => entry.Video.Id.ToString("D", CultureInfo.InvariantCulture),
-                            entry => new Uri($"/Pawfin/Moments/{parent.Id}/Clips/{entry.Video.Id}/Image", UriKind.Relative),
-                            StringComparer.OrdinalIgnoreCase),
-                    Clips = clipEntries.Select(entry => _dtoService.GetBaseItemDto(entry.Video, options, user)).ToList(),
-                };
-            })
-            .ToList();
+                Id = StableId(parent.Id, groupPath),
+                Name = Path.GetFileName(groupPath) ?? string.Empty,
+                MiniatureUrl = FindMiniature(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Miniature", UriKind.Relative),
+                PrimaryUrl = FindPrimary(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Primary", UriKind.Relative),
+                ClipImageUrls = clipEntries
+                    .Where(entry => FindAnyImage(Path.GetDirectoryName(entry.Path)) is not null)
+                    .ToDictionary(
+                        entry => entry.Video.Id.ToString("D", CultureInfo.InvariantCulture),
+                        entry => new Uri($"/Pawfin/Moments/{parent.Id}/Clips/{entry.Video.Id}/Image", UriKind.Relative),
+                        StringComparer.OrdinalIgnoreCase),
+                Clips = clipEntries.Select(entry => _dtoService.GetBaseItemDto(entry.Video, options, user)).ToList(),
+            });
+        }
+
         return Ok(groups);
+    }
+
+    [HttpGet("{itemId:guid}/Clips/{clipId:guid}/Runtime")]
+    public async Task<ActionResult<long>> GetClipRuntime(Guid itemId, Guid clipId, CancellationToken cancellationToken)
+    {
+        var userId = UserHelper.GetUserId(User);
+        if (userId == Guid.Empty || !_store.Read(data => data.MomentAllowedUsers.Contains(userId)))
+        {
+            return Forbid();
+        }
+
+        var parent = _libraryManager.GetItemById(itemId);
+        var momentsRoot = parent is null ? null : FindMomentsRoot(parent.Path);
+        if (momentsRoot is null)
+        {
+            return NotFound();
+        }
+
+        var clip = _libraryManager.GetItemById(clipId);
+        var path = clip?.Path is not null && IsWithin(clip.Path, momentsRoot)
+            ? clip.Path
+            : Directory.EnumerateFiles(momentsRoot, "*", SearchOption.AllDirectories)
+                .Where(candidate => VideoExtensions.Contains(Path.GetExtension(candidate)))
+                .FirstOrDefault(candidate => GetOrCreateMomentVideo(candidate).Id == clipId);
+        if (path is null)
+        {
+            return NotFound();
+        }
+
+        var runtimeTicks = await GetClipRuntimeTicks(path, cancellationToken).ConfigureAwait(false);
+        return runtimeTicks is > 0 ? Ok(runtimeTicks.Value) : NotFound();
+    }
+
+    private Task<long?> GetClipRuntimeTicks(string path, CancellationToken cancellationToken)
+    {
+        var file = new FileInfo(path);
+        var cacheKey = file.FullName + "|" + file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
+        return RuntimeCache.GetOrAdd(cacheKey, _ => ProbeClipRuntimeTicks(path, cacheKey, cancellationToken));
+    }
+
+    private async Task<long?> ProbeClipRuntimeTicks(string path, string cacheKey, CancellationToken cancellationToken)
+    {
+        var acquired = false;
+        try
+        {
+            await RuntimeProbeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            acquired = true;
+            var mediaInfo = await _mediaEncoder.GetMediaInfo(
+                new MediaInfoRequest
+                {
+                    MediaSource = new MediaSourceInfo
+                    {
+                        Path = path,
+                        Protocol = MediaProtocol.File,
+                    },
+                    MediaType = DlnaProfileType.Video,
+                    ExtractChapters = false,
+                },
+                cancellationToken).ConfigureAwait(false);
+            return mediaInfo.RunTimeTicks;
+        }
+        catch
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            return null;
+        }
+        finally
+        {
+            if (acquired)
+            {
+                RuntimeProbeSemaphore.Release();
+            }
+        }
     }
 
     /// <summary>Serves the optional Miniature image for a Moments group.</summary>
