@@ -80,25 +80,25 @@ public class MomentsController : ControllerBase
             .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
             .Select(groupPath =>
             {
-                var clipItems = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
+                var clipEntries = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
                     .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
-                    .Select(GetOrCreateMomentVideo)
-                    .DistinctBy(video => video.Id)
-                    .OrderBy(video => ParseOrder(video.Path ?? video.Name))
-                    .ThenBy(video => Path.GetFileName(video.Path), StringComparer.OrdinalIgnoreCase)
+                    .Select(path => new { Path = path, Video = GetOrCreateMomentVideo(path) })
+                    .DistinctBy(entry => entry.Video.Id)
+                    .OrderBy(entry => ParseOrder(entry.Path))
+                    .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 return new MomentGroupDto
                 {
                     Id = StableId(parent.Id, groupPath),
                     Name = Path.GetFileName(groupPath) ?? string.Empty,
                     MiniatureUrl = FindMiniature(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Miniature", UriKind.Relative),
-                    ClipImageUrls = clipItems
-                        .Where(video => FindAnyImage(Path.GetDirectoryName(video.Path ?? string.Empty)) is not null)
+                    ClipImageUrls = clipEntries
+                        .Where(entry => FindAnyImage(Path.GetDirectoryName(entry.Path)) is not null)
                         .ToDictionary(
-                            video => video.Id.ToString("D", CultureInfo.InvariantCulture),
-                            video => new Uri($"/Pawfin/Moments/{parent.Id}/Clips/{video.Id}/Image", UriKind.Relative),
+                            entry => entry.Video.Id.ToString("D", CultureInfo.InvariantCulture),
+                            entry => new Uri($"/Pawfin/Moments/{parent.Id}/Clips/{entry.Video.Id}/Image", UriKind.Relative),
                             StringComparer.OrdinalIgnoreCase),
-                    Clips = clipItems.Select(video => _dtoService.GetBaseItemDto(video, options, user)).ToList(),
+                    Clips = clipEntries.Select(entry => _dtoService.GetBaseItemDto(entry.Video, options, user)).ToList(),
                 };
             })
             .ToList();
