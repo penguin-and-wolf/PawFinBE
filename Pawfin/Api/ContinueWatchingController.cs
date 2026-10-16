@@ -38,6 +38,7 @@ public class ContinueWatchingController : ControllerBase
     /// <param name="userManager">The Jellyfin user manager.</param>
     /// <param name="userDataManager">The Jellyfin user data manager.</param>
     /// <param name="dtoService">The Jellyfin DTO service.</param>
+    /// <param name="store">The Pawfin data store.</param>
     public ContinueWatchingController(ILibraryManager libraryManager, IUserManager userManager, IUserDataManager userDataManager, IDtoService dtoService, PawfinStore store)
     {
         _libraryManager = libraryManager;
