@@ -72,7 +72,10 @@ public class MarathonController : ControllerBase
             state.ItemIds.Any(id => id == Guid.Empty) || state.ItemIds.Distinct().Count() != state.ItemIds.Count ||
             state.CurrentIndex < 0 || state.CurrentIndex >= state.ItemIds.Count ||
             (state.SourceType is not null && !string.Equals(state.SourceType, "Seasonals", StringComparison.OrdinalIgnoreCase) &&
-             !string.Equals(state.SourceType, "Collections", StringComparison.OrdinalIgnoreCase)) ||
+             !string.Equals(state.SourceType, "Collections", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(state.SourceType, "Moments", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(state.SourceType, "ShipMoments", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(state.SourceType, "CharacterMoments", StringComparison.OrdinalIgnoreCase)) ||
             (state.SourceType is not null && state.SourceId is null))
         {
             return BadRequest("A marathon must contain 1–500 unique item ids and a valid current index.");

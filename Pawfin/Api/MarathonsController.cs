@@ -39,7 +39,16 @@ public class MarathonsController : ControllerBase
         {
             MigrateLegacyState(data, userId);
             return data.Marathons.TryGetValue(userId, out var entries)
-                ? entries.Values.OrderByDescending(state => state.UpdatedUtc).ToArray()
+                ? entries.Values.OrderByDescending(state => state.UpdatedUtc)
+                    .Aggregate(new List<MarathonState>(), (unique, state) =>
+                    {
+                        if (!unique.Any(existing => IsSameQueue(existing, state)))
+                        {
+                            unique.Add(state);
+                        }
+
+                        return unique;
+                    }).ToArray()
                 : Array.Empty<MarathonState>();
         });
         return Ok(states);
@@ -64,13 +73,15 @@ public class MarathonsController : ControllerBase
             state.ItemIds.Any(id => id == Guid.Empty) || state.ItemIds.Distinct().Count() != state.ItemIds.Count ||
             state.CurrentIndex < 0 || state.CurrentIndex >= state.ItemIds.Count ||
             (state.SourceType is not null && !string.Equals(state.SourceType, "Seasonals", StringComparison.OrdinalIgnoreCase) &&
-             !string.Equals(state.SourceType, "Collections", StringComparison.OrdinalIgnoreCase)) ||
+             !string.Equals(state.SourceType, "Collections", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(state.SourceType, "Moments", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(state.SourceType, "ShipMoments", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(state.SourceType, "CharacterMoments", StringComparison.OrdinalIgnoreCase)) ||
             (state.SourceType is not null && state.SourceId is null))
         {
             return BadRequest("A marathon must contain 1–500 unique item ids and a valid current index.");
         }
 
-        state.MarathonId = state.MarathonId == Guid.Empty ? Guid.NewGuid() : state.MarathonId;
         state.UpdatedUtc = DateTime.UtcNow;
         _store.Write(data =>
         {
@@ -79,6 +90,19 @@ public class MarathonsController : ControllerBase
             {
                 entries = [];
                 data.Marathons[userId] = entries;
+            }
+
+            if (state.MarathonId == Guid.Empty)
+            {
+                state.MarathonId = entries.Values
+                    .Where(existing => IsSameQueue(existing, state))
+                    .OrderByDescending(existing => existing.UpdatedUtc)
+                    .Select(existing => existing.MarathonId)
+                    .FirstOrDefault();
+                if (state.MarathonId == Guid.Empty)
+                {
+                    state.MarathonId = Guid.NewGuid();
+                }
             }
 
             entries[state.MarathonId] = state;
@@ -105,7 +129,22 @@ public class MarathonsController : ControllerBase
             MigrateLegacyState(data, userId);
             if (data.Marathons.TryGetValue(userId, out var entries))
             {
-                entries.Remove(marathonId);
+                if (entries.TryGetValue(marathonId, out var selected))
+                {
+                    var matchingIds = entries.Values
+                        .Where(state => IsSameQueue(selected, state))
+                        .Select(state => state.MarathonId)
+                        .ToArray();
+                    foreach (var matchingId in matchingIds)
+                    {
+                        entries.Remove(matchingId);
+                    }
+                }
+                else
+                {
+                    entries.Remove(marathonId);
+                }
+
                 if (entries.Count == 0)
                 {
                     data.Marathons.Remove(userId);
@@ -133,6 +172,11 @@ public class MarathonsController : ControllerBase
         legacy.MarathonId = legacy.MarathonId == Guid.Empty ? Guid.NewGuid() : legacy.MarathonId;
         entries[legacy.MarathonId] = legacy;
     }
+
+    private static bool IsSameQueue(MarathonState left, MarathonState right) =>
+        left.SourceId == right.SourceId &&
+        string.Equals(left.SourceType, right.SourceType, StringComparison.OrdinalIgnoreCase) &&
+        left.ItemIds.SequenceEqual(right.ItemIds);
 
     private Guid ResolveUserId(Guid? requestedUserId)
     {

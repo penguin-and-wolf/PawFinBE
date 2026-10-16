@@ -1,5 +1,6 @@
 using System;
 using System.Security.Claims;
+using MediaBrowser.Controller.Library;
 
 namespace PenguinAndWolf.Pawfin.Services;
 
@@ -19,5 +20,17 @@ public static class UserHelper
             ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? principal.FindFirst("sub")?.Value;
         return Guid.TryParse(value, out var id) ? id : Guid.Empty;
+    }
+
+    /// <summary>
+    /// Checks whether the authenticated Jellyfin user is an administrator.
+    /// </summary>
+    /// <param name="principal">The claims principal.</param>
+    /// <param name="userManager">The Jellyfin user manager.</param>
+    /// <returns>Whether the user exists and has administrator policy.</returns>
+    public static bool IsAdministrator(ClaimsPrincipal principal, IUserManager userManager)
+    {
+        var userId = GetUserId(principal);
+        return userId != Guid.Empty && userManager.GetUserById(userId)?.Policy.IsAdministrator == true;
     }
 }

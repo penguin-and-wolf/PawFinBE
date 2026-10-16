@@ -49,16 +49,18 @@ public class AssetsController : ControllerBase
 
     private readonly PawfinStore _store;
     private readonly ILibraryManager _libraryManager;
+    private readonly IUserManager _userManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AssetsController"/> class.
     /// </summary>
     /// <param name="store">The store.</param>
     /// <param name="libraryManager">The library manager.</param>
-    public AssetsController(PawfinStore store, ILibraryManager libraryManager)
+    public AssetsController(PawfinStore store, ILibraryManager libraryManager, IUserManager userManager)
     {
         _store = store;
         _libraryManager = libraryManager;
+        _userManager = userManager;
     }
 
     /// <summary>
@@ -284,6 +286,11 @@ public class AssetsController : ControllerBase
 
     private async Task<ActionResult> Upload(string ownerType, Guid ownerId, string contentTypePrefix, Action<AssetSet, AssetFile> attach)
     {
+        if (!UserHelper.IsAdministrator(User, _userManager))
+        {
+            return Forbid();
+        }
+
         var contentType = (Request.ContentType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
         if (!contentType.StartsWith(contentTypePrefix, StringComparison.Ordinal))
         {
@@ -320,6 +327,11 @@ public class AssetsController : ControllerBase
 
     private ActionResult Modify(string ownerType, Guid ownerId, Func<AssetSet, bool> action)
     {
+        if (!UserHelper.IsAdministrator(User, _userManager))
+        {
+            return Forbid();
+        }
+
         if (ownerType.Equals("Seasonals", StringComparison.OrdinalIgnoreCase))
         {
             var found = _store.Write(d =>

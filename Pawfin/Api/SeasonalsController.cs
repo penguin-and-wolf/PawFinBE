@@ -120,6 +120,11 @@ public class SeasonalsController : ControllerBase
     [HttpPost]
     public ActionResult<SeasonalDto> Create([FromBody, BindRequired] SeasonalRequest request)
     {
+        if (!UserHelper.IsAdministrator(User, _userManager))
+        {
+            return Forbid();
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal", detail: "Name is required.");
@@ -157,6 +162,11 @@ public class SeasonalsController : ControllerBase
     [HttpPut("{id}")]
     public ActionResult<SeasonalDto> Update([FromRoute] Guid id, [FromBody, BindRequired] SeasonalRequest request)
     {
+        if (!UserHelper.IsAdministrator(User, _userManager))
+        {
+            return Forbid();
+        }
+
         if (request.ClearDates && request.StartDate is null)
         {
             return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal", detail: "A start date is required.");
@@ -194,6 +204,11 @@ public class SeasonalsController : ControllerBase
     [HttpDelete("{id}")]
     public ActionResult Delete([FromRoute] Guid id)
     {
+        if (!UserHelper.IsAdministrator(User, _userManager))
+        {
+            return Forbid();
+        }
+
         var removed = _store.Write(d => d.Seasonals.RemoveAll(x => x.Id == id) > 0);
         if (!removed)
         {
@@ -213,6 +228,11 @@ public class SeasonalsController : ControllerBase
     [HttpPost("{id}/Items")]
     public ActionResult<SeasonalDto> AddItems([FromRoute] Guid id, [FromQuery, BindRequired] Guid[] itemIds)
     {
+        if (!UserHelper.IsAdministrator(User, _userManager))
+        {
+            return Forbid();
+        }
+
         if (itemIds.Any(i => _libraryManager.GetItemById(i) is null))
         {
             return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid seasonal items", detail: "One or more item IDs do not exist in the Jellyfin library.");
@@ -243,6 +263,11 @@ public class SeasonalsController : ControllerBase
     [HttpDelete("{id}/Items")]
     public ActionResult<SeasonalDto> RemoveItems([FromRoute] Guid id, [FromQuery, BindRequired] Guid[] itemIds)
     {
+        if (!UserHelper.IsAdministrator(User, _userManager))
+        {
+            return Forbid();
+        }
+
         var seasonal = _store.Write(d =>
         {
             var s = d.Seasonals.FirstOrDefault(x => x.Id == id);
@@ -266,6 +291,11 @@ public class SeasonalsController : ControllerBase
     [HttpPost("{id}/Items/Order")]
     public ActionResult<SeasonalDto> SetOrder([FromRoute] Guid id, [FromBody, BindRequired] Guid[] itemIds)
     {
+        if (!UserHelper.IsAdministrator(User, _userManager))
+        {
+            return Forbid();
+        }
+
         var seasonal = _store.Write(d =>
         {
             var s = d.Seasonals.FirstOrDefault(x => x.Id == id);

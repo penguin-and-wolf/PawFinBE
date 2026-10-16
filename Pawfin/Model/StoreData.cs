@@ -22,4 +22,7 @@ public class StoreData
 
     /// <summary>Gets or sets all resumable marathons for each user, keyed by marathon id.</summary>
     public Dictionary<Guid, Dictionary<Guid, MarathonState>> Marathons { get; set; } = [];
+
+    /// <summary>Gets or sets users allowed to view Moments.</summary>
+    public HashSet<Guid> MomentAllowedUsers { get; set; } = [];
 }
