@@ -1,7 +1,7 @@
 ---
 name: "Pawfin Backend"
 guid: "7c1f3a52-9b0e-4d7e-8a65-2f4c9e1d3b70"
-version: "1.0.2.0"
+version: "1.0.3.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Seasonals, collection themes/backgrounds, Next Up removal and resumable marathons"
@@ -14,4 +14,4 @@ owner: "penguin-and-wolf"
 artifacts:
 - "com.penguinandwolf.pawfin.dll"
 changelog: >
-  Adds multiple server-saved marathons per user for reliable resume across devices.
+  Adds administrator-managed Moments access and a Pawfin-owned Continue Watching resume endpoint.
