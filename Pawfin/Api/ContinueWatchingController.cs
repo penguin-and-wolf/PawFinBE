@@ -61,8 +61,10 @@ public class ContinueWatchingController : ControllerBase
         };
         var resumable = _libraryManager.GetItemList(query)
             .Where(item => item.MediaType == MediaType.Video)
-            .Where(item => _userDataManager.GetUserData(user, item).PlaybackPositionTicks > 0 && !_userDataManager.GetUserData(user, item).Played)
-            .OrderByDescending(item => _userDataManager.GetUserData(user, item).LastPlayedDate)
+            .Select(item => new { Item = item, UserData = _userDataManager.GetUserData(user, item) })
+            .Where(entry => entry.UserData is { PlaybackPositionTicks: > 0, Played: false })
+            .OrderByDescending(entry => entry.UserData?.LastPlayedDate)
+            .Select(entry => entry.Item)
             .ToList();
         var page = resumable.Skip(offset).Take(Math.Clamp(limit, 0, 500))
             .Select(item => _dtoService.GetBaseItemDto(item, options, user)).ToList();
