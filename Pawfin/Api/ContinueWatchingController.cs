@@ -130,6 +130,20 @@ public class ContinueWatchingController : ControllerBase
             .Select(item =>
             {
                 var dto = _dtoService.GetBaseItemDto(item, options, user);
+                // GetBaseItemDto does not consistently carry UserData for files
+                // created on demand outside Jellyfin's normal library scan. Keep
+                // the resume position explicit so clients can accept the item.
+                var userData = _userDataManager.GetUserData(user, item);
+                if (userData is not null)
+                {
+                    dto.UserData = new UserItemDataDto
+                    {
+                        PlaybackPositionTicks = userData.PlaybackPositionTicks,
+                        Played = userData.Played,
+                        LastPlayedDate = userData.LastPlayedDate,
+                    };
+                }
+
                 if (momentPairings.TryGetValue(item.Id, out var pairing))
                 {
                     dto.Tags = (dto.Tags ?? Array.Empty<string>())

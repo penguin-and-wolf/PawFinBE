@@ -16,6 +16,9 @@ public class MomentGroupDto
     /// <summary>Gets or sets the URL for the group's optional Miniature image.</summary>
     public Uri? MiniatureUrl { get; set; }
 
+    /// <summary>Gets or sets the URL for the group's Primary image.</summary>
+    public Uri? PrimaryUrl { get; set; }
+
     /// <summary>Gets or sets image URLs keyed by the Jellyfin clip item id.</summary>
     public Dictionary<string, Uri> ClipImageUrls { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 

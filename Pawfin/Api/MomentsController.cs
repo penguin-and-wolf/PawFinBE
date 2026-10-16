@@ -92,6 +92,7 @@ public class MomentsController : ControllerBase
                     Id = StableId(parent.Id, groupPath),
                     Name = Path.GetFileName(groupPath) ?? string.Empty,
                     MiniatureUrl = FindMiniature(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Miniature", UriKind.Relative),
+                    PrimaryUrl = FindPrimary(groupPath) is null ? null : new Uri($"/Pawfin/Moments/{parent.Id}/Groups/{StableId(parent.Id, groupPath)}/Primary", UriKind.Relative),
                     ClipImageUrls = clipEntries
                         .Where(entry => FindAnyImage(Path.GetDirectoryName(entry.Path)) is not null)
                         .ToDictionary(
@@ -122,7 +123,28 @@ public class MomentsController : ControllerBase
         var momentsRoot = parent is null ? null : FindMomentsRoot(parent.Path);
         var groupPath = momentsRoot is null ? null : Directory.EnumerateDirectories(momentsRoot)
             .FirstOrDefault(path => StableId(itemId, path) == groupId);
-        var image = groupPath is null ? null : FindAnyImage(groupPath);
+        var image = groupPath is null ? null : FindMiniature(groupPath) ?? FindPrimary(groupPath) ?? FindAnyDirectImage(groupPath);
+        return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
+    }
+
+    /// <summary>Serves the Primary image stored directly in a Moments group folder.</summary>
+    /// <param name="itemId">The movie or series id.</param>
+    /// <param name="groupId">The stable group id.</param>
+    /// <returns>The group's Primary image.</returns>
+    [HttpGet("{itemId:guid}/Groups/{groupId:guid}/Primary")]
+    public IActionResult GetPrimary(Guid itemId, Guid groupId)
+    {
+        var userId = UserHelper.GetUserId(User);
+        if (userId == Guid.Empty || !_store.Read(data => data.MomentAllowedUsers.Contains(userId)))
+        {
+            return Forbid();
+        }
+
+        var parent = _libraryManager.GetItemById(itemId);
+        var momentsRoot = parent is null ? null : FindMomentsRoot(parent.Path);
+        var groupPath = momentsRoot is null ? null : Directory.EnumerateDirectories(momentsRoot)
+            .FirstOrDefault(path => StableId(itemId, path) == groupId);
+        var image = groupPath is null ? null : FindPrimary(groupPath);
         return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
     }
 
@@ -151,7 +173,9 @@ public class MomentsController : ControllerBase
             ? clip.Path
             : Directory.EnumerateFiles(momentsRoot, "*", SearchOption.AllDirectories)
                 .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
-                .FirstOrDefault(path => _libraryManager.GetNewItemId(Path.GetFullPath(path), typeof(Video)) == clipId);
+                // Use the same lookup/creation path as group discovery. Existing
+                // library items can have an ID that differs from GetNewItemId().
+                .FirstOrDefault(path => GetOrCreateMomentVideo(path).Id == clipId);
         var image = clipPath is null ? null : FindAnyImage(Path.GetDirectoryName(clipPath));
         return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
     }
@@ -203,7 +227,22 @@ public class MomentsController : ControllerBase
         return _libraryManager.GetItemById(id) ?? video;
     }
 
-    private static string? FindMiniature(string directory) => FindAnyImage(directory);
+    private static string? FindMiniature(string directory) => FindNamedImage(directory, "Miniature") ??
+        FindNamedImage(directory, "Minature");
+
+    private static string? FindPrimary(string directory) => FindNamedImage(directory, "Primary");
+
+    private static string? FindNamedImage(string directory, string name)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        return Directory.EnumerateFiles(directory)
+            .Where(path => ImageExtensions.Contains(Path.GetExtension(path)))
+            .FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), name, StringComparison.OrdinalIgnoreCase));
+    }
 
     private static string? FindAnyImage(string? directory)
     {
@@ -212,7 +251,7 @@ public class MomentsController : ControllerBase
             return null;
         }
 
-        var files = Directory.EnumerateFiles(directory).Where(path => ImageExtensions.Contains(Path.GetExtension(path))).ToList();
+        var files = GetDirectImages(directory);
         var preferred = files.FirstOrDefault(IsMiniature);
         if (preferred is not null)
         {
@@ -229,6 +268,14 @@ public class MomentsController : ControllerBase
             .Select(FindAnyImage)
             .FirstOrDefault(path => path is not null);
     }
+
+    private static string? FindAnyDirectImage(string directory) => GetDirectImages(directory)
+        .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+        .FirstOrDefault();
+
+    private static List<string> GetDirectImages(string directory) => Directory.EnumerateFiles(directory)
+        .Where(path => ImageExtensions.Contains(Path.GetExtension(path)))
+        .ToList();
 
     private static bool IsMiniature(string path) =>
         (string.Equals(Path.GetFileNameWithoutExtension(path), "Miniature", StringComparison.OrdinalIgnoreCase) ||
