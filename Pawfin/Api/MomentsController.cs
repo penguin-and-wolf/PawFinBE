@@ -26,6 +26,7 @@ public class MomentsController : ControllerBase
 {
     private static readonly Regex ClipOrder = new("S(?<season>\\d+)E(?<episode>\\d+)P(?<part>\\d+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
+    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase) { ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".webm", ".wmv" };
     private readonly PawfinStore _store;
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
@@ -75,25 +76,16 @@ public class MomentsController : ControllerBase
         }
 
         var options = new DtoOptions(true);
-        var libraryClips = _libraryManager.GetItemList(new InternalItemsQuery(user) { ParentId = parent.Id, Recursive = true })
-            .Where(item => item.MediaType == Jellyfin.Data.Enums.MediaType.Video)
-            .ToList();
-        if (!libraryClips.Any(item => IsWithin(item.Path, momentsRoot)))
-        {
-            libraryClips = _libraryManager.GetItemList(new InternalItemsQuery(user) { Recursive = true })
-                .Where(item => item.MediaType == Jellyfin.Data.Enums.MediaType.Video && IsWithin(item.Path, momentsRoot))
-                .ToList();
-        }
-
         var groups = Directory.EnumerateDirectories(momentsRoot)
             .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
             .Select(groupPath =>
             {
-                var clips = Directory.EnumerateDirectories(groupPath)
-                    .SelectMany(clipPath => libraryClips.Where(item => IsWithin(item.Path, clipPath)))
-                    .DistinctBy(item => item.Id)
-                    .OrderBy(item => ParseOrder(item.Path ?? item.Name))
-                    .ThenBy(item => Path.GetFileName(item.Path), StringComparer.OrdinalIgnoreCase)
+                var clips = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
+                    .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
+                    .Select(GetOrCreateMomentVideo)
+                    .DistinctBy(video => video.Id)
+                    .OrderBy(video => ParseOrder(video.Path ?? video.Name))
+                    .ThenBy(video => Path.GetFileName(video.Path), StringComparer.OrdinalIgnoreCase)
                     .Select(item => _dtoService.GetBaseItemDto(item, options, user))
                     .ToList();
                 return new MomentGroupDto
@@ -154,9 +146,39 @@ public class MomentsController : ControllerBase
             .FirstOrDefault(path => string.Equals(Path.GetFileName(path), "Moments", StringComparison.OrdinalIgnoreCase));
     }
 
+    private BaseItem GetOrCreateMomentVideo(string path)
+    {
+        var existing = _libraryManager.FindByPath(path, false);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var file = new FileInfo(path);
+        var id = _libraryManager.GetNewItemId(file.FullName, typeof(Video));
+        var video = new Video
+        {
+            Id = id,
+            Name = Path.GetFileNameWithoutExtension(file.Name),
+            Path = file.FullName,
+            DateCreated = file.CreationTimeUtc,
+            DateModified = file.LastWriteTimeUtc,
+        };
+        _libraryManager.CreateItem(video, null);
+        return _libraryManager.GetItemById(id) ?? video;
+    }
+
     private static string? FindMiniature(string directory) => Directory.EnumerateFiles(directory)
-        .FirstOrDefault(path => string.Equals(Path.GetFileNameWithoutExtension(path), "Miniature", StringComparison.OrdinalIgnoreCase) &&
-            ImageExtensions.Contains(Path.GetExtension(path)));
+        .FirstOrDefault(IsMiniature)
+        ?? Directory.EnumerateDirectories(directory)
+            .OrderBy(path => ParseOrder(Path.GetFileName(path) ?? string.Empty))
+            .SelectMany(Directory.EnumerateFiles)
+            .FirstOrDefault(IsMiniature);
+
+    private static bool IsMiniature(string path) =>
+        (string.Equals(Path.GetFileNameWithoutExtension(path), "Miniature", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileNameWithoutExtension(path), "Minature", StringComparison.OrdinalIgnoreCase)) &&
+        ImageExtensions.Contains(Path.GetExtension(path));
 
     private static bool IsWithin(string? itemPath, string directory) =>
         !string.IsNullOrWhiteSpace(itemPath) && Path.GetFullPath(itemPath).StartsWith(
