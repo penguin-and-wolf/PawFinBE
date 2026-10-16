@@ -141,13 +141,18 @@ public class MomentsController : ControllerBase
 
         var parent = _libraryManager.GetItemById(itemId);
         var momentsRoot = parent is null ? null : FindMomentsRoot(parent.Path);
-        var clip = _libraryManager.GetItemById(clipId);
-        if (momentsRoot is null || clip?.Path is null || !IsWithin(clip.Path, momentsRoot))
+        if (momentsRoot is null)
         {
             return NotFound();
         }
 
-        var image = FindAnyImage(Path.GetDirectoryName(clip.Path));
+        var clip = _libraryManager.GetItemById(clipId);
+        var clipPath = clip?.Path is not null && IsWithin(clip.Path, momentsRoot)
+            ? clip.Path
+            : Directory.EnumerateFiles(momentsRoot, "*", SearchOption.AllDirectories)
+                .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
+                .FirstOrDefault(path => _libraryManager.GetNewItemId(Path.GetFullPath(path), typeof(Video)) == clipId);
+        var image = clipPath is null ? null : FindAnyImage(Path.GetDirectoryName(clipPath));
         return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
     }
 

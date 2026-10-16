@@ -51,11 +51,20 @@ public class ContinueWatchingController : ControllerBase
     /// <summary>Gets the authenticated user's resumable video items.</summary>
     /// <param name="startIndex">The first result to return.</param>
     /// <param name="limit">The maximum number of results to return.</param>
+    /// <param name="requestedUserId">Optional Jellyfin user id for API-key requests.</param>
     /// <returns>The resumable video items.</returns>
     [HttpGet]
-    public ActionResult<QueryResult<BaseItemDto>> Get([FromQuery] int startIndex = 0, [FromQuery] int limit = 100)
+    public ActionResult<QueryResult<BaseItemDto>> Get(
+        [FromQuery] int startIndex = 0,
+        [FromQuery] int limit = 100,
+        [FromQuery(Name = "userId")] Guid? requestedUserId = null)
     {
         var userId = UserHelper.GetUserId(User);
+        if (userId == Guid.Empty && requestedUserId.HasValue)
+        {
+            userId = requestedUserId.Value;
+        }
+
         var user = userId == Guid.Empty ? null : _userManager.GetUserById(userId);
         if (user is null)
         {
@@ -79,8 +88,12 @@ public class ContinueWatchingController : ControllerBase
         var momentPairings = new Dictionary<Guid, string>();
         if (_store.Read(data => data.MomentAllowedUsers.Contains(userId)))
         {
-            var visibleItems = _libraryManager.GetItemList(new InternalItemsQuery(user) { Recursive = true });
-            foreach (var parent in visibleItems.Where(item => item.GetType().Name is "Movie" or "Series"))
+            var visibleItems = _libraryManager.GetItemList(new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            });
+            foreach (var parent in visibleItems)
             {
                 var momentsRoot = FindMomentsRoot(parent.Path);
                 if (momentsRoot is null)
