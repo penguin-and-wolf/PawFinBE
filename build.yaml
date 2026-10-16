@@ -1,17 +1,17 @@
 ---
 name: "Pawfin Backend"
 guid: "7c1f3a52-9b0e-4d7e-8a65-2f4c9e1d3b70"
-version: "1.0.3.0"
+version: "1.0.4.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
-overview: "Seasonals, collection themes/backgrounds, Next Up removal and resumable marathons"
+overview: "Seasonals, Moments, Next Up controls and resumable marathon playback"
 description: >
-  Adds date-based seasonal collections, custom images and themes for seasonals
-  and collections, controls for hiding items from users' Next Up lists, and
-  multiple resumable marathons per user.
+  Adds seasonal collections, discovers clips in Extras/Moments folders, controls
+  Moments access per user, provides Pawfin-owned Continue Watching resume items,
+  and stores multiple resumable playback queues per user.
 category: "General"
 owner: "penguin-and-wolf"
 artifacts:
 - "com.penguinandwolf.pawfin.dll"
 changelog: >
-  Adds administrator-managed Moments access and a Pawfin-owned Continue Watching resume endpoint.
+  Adds Moments folder discovery and per-user access control, plus a Pawfin-owned Continue Watching resume endpoint.

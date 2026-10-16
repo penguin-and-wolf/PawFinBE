@@ -21,6 +21,9 @@ public class MarathonState
     /// <summary>Gets or sets the optional source asset owner id.</summary>
     public Guid? SourceId { get; set; }
 
+    /// <summary>Gets or sets the display name for the source group.</summary>
+    public string? SourceName { get; set; }
+
     /// <summary>Gets or sets when this state was last updated.</summary>
     public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
 }
