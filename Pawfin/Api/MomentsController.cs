@@ -173,6 +173,7 @@ public class MomentsController : ControllerBase
             ? clip.Path
             : Directory.EnumerateFiles(momentsRoot, "*", SearchOption.AllDirectories)
                 .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
+
                 // Use the same lookup/creation path as group discovery. Existing
                 // library items can have an ID that differs from GetNewItemId().
                 .FirstOrDefault(path => GetOrCreateMomentVideo(path).Id == clipId);
