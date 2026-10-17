@@ -232,11 +232,51 @@ public class MomentsController : ControllerBase
         return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
     }
 
-    private Task<long?> GetClipRuntimeTicks(string path, CancellationToken cancellationToken)
+    private async Task<long?> GetClipRuntimeTicks(string path, CancellationToken cancellationToken)
     {
         var file = new FileInfo(path);
         var cacheKey = file.FullName + "|" + file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
-        return RuntimeCache.GetOrAdd(cacheKey, _ => ProbeClipRuntimeTicks(path, cacheKey, cancellationToken));
+        var probe = RuntimeCache.GetOrAdd(cacheKey, _ => ProbeClipRuntimeTicks(path, cacheKey, cancellationToken));
+        long? runtimeTicks;
+        try
+        {
+            runtimeTicks = await probe.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            throw;
+        }
+        catch (IOException)
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            return null;
+        }
+        catch (TimeoutException)
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+            return null;
+        }
+
+        // A transient probe failure must not poison this clip's cache forever. Only
+        // successful durations are useful for playback UI and can be retained.
+        if ((!runtimeTicks.HasValue || runtimeTicks.Value <= 0) &&
+            RuntimeCache.TryGetValue(cacheKey, out var cachedProbe) && ReferenceEquals(probe, cachedProbe))
+        {
+            RuntimeCache.TryRemove(cacheKey, out _);
+        }
+
+        return runtimeTicks;
     }
 
     private async Task<long?> ProbeClipRuntimeTicks(string path, string cacheKey, CancellationToken cancellationToken)
