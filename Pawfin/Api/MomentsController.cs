@@ -32,7 +32,10 @@ namespace PenguinAndWolf.Pawfin.Api;
 [Produces("application/json")]
 public class MomentsController : ControllerBase
 {
-    private static readonly Regex ClipOrder = new("S(?<season>\\d+)E(?<episode>\\d+)P(?<part>\\d+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex ClipOrder = new(
+        "S(?<season>\\d+)E(?<episodes>\\d+(?:E\\d+)*)(?:P(?<part>\\d+))?",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase) { ".bmp", ".gif", ".jpg", ".jpeg", ".png", ".webp" };
     private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase) { ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".webm", ".wmv" };
     private static readonly ConcurrentDictionary<string, Task<long?>> RuntimeCache = new(StringComparer.OrdinalIgnoreCase);
@@ -98,11 +101,17 @@ public class MomentsController : ControllerBase
         {
             var clipEntries = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
                 .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
-                .Select(path => new { Path = path, Video = GetOrCreateMomentVideo(path) })
+                .Select(path => new
+                {
+                    Path = path,
+                    OrderFolder = GetMomentOrderFolder(path, groupPath),
+                    Video = GetOrCreateMomentVideo(path),
+                })
                 .DistinctBy(entry => entry.Video.Id)
 
                 // The folder controls chronology; the media filename is the clip's display name.
-                .OrderBy(entry => ParseOrder(Path.GetFileName(Path.GetDirectoryName(entry.Path) ?? entry.Path) ?? string.Empty))
+                .OrderBy(entry => ParseOrder(entry.OrderFolder))
+                .ThenBy(entry => entry.OrderFolder, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -465,12 +474,39 @@ public class MomentsController : ControllerBase
         return new Guid(bytes.AsSpan(0, 16));
     }
 
-    private static (int Season, int Episode, int Part) ParseOrder(string value)
+    private static (int Season, int FirstEpisode, int LastEpisode, int Part) ParseOrder(string value)
     {
         var match = ClipOrder.Match(value);
-        return match.Success
-            ? (int.Parse(match.Groups["season"].Value, CultureInfo.InvariantCulture), int.Parse(match.Groups["episode"].Value, CultureInfo.InvariantCulture), int.Parse(match.Groups["part"].Value, CultureInfo.InvariantCulture))
-            : (int.MaxValue, int.MaxValue, int.MaxValue);
+        if (!match.Success)
+        {
+            return (int.MaxValue, int.MaxValue, int.MaxValue, int.MaxValue);
+        }
+
+        var episodes = match.Groups["episodes"].Value.ToUpperInvariant()
+            .Split('E', StringSplitOptions.RemoveEmptyEntries)
+            .Select(number => int.Parse(number, CultureInfo.InvariantCulture))
+            .ToArray();
+        var part = match.Groups["part"].Success
+            ? int.Parse(match.Groups["part"].Value, CultureInfo.InvariantCulture)
+            : 0;
+        return (
+            int.Parse(match.Groups["season"].Value, CultureInfo.InvariantCulture),
+            episodes[0],
+            episodes[^1],
+            part);
+    }
+
+    private static string GetMomentOrderFolder(string path, string groupPath)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (directory is null)
+        {
+            return Path.GetFileName(path);
+        }
+
+        var relativeDirectory = Path.GetRelativePath(groupPath, directory);
+        var firstFolder = relativeDirectory.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+        return string.Equals(firstFolder, ".", StringComparison.Ordinal) ? Path.GetFileName(path) : firstFolder;
     }
 
     private static string ContentTypeFor(string path) => Path.GetExtension(path).ToLowerInvariant() switch

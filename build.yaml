@@ -1,7 +1,7 @@
 ---
 name: "Pawfin Backend"
 guid: "7c1f3a52-9b0e-4d7e-8a65-2f4c9e1d3b70"
-version: "1.0.14.0"
+version: "1.0.15.0"
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Seasonals, Moments, Next Up controls and resumable marathon playback"
