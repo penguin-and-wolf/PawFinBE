@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Database.Implementations.Entities;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -40,6 +41,7 @@ public class MomentsController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IDtoService _dtoService;
+    private readonly IMediaSourceManager _mediaSourceManager;
     private readonly IMediaEncoder _mediaEncoder;
 
     /// <summary>Initializes a new instance of the <see cref="MomentsController"/> class.</summary>
@@ -47,13 +49,15 @@ public class MomentsController : ControllerBase
     /// <param name="libraryManager">The Jellyfin library manager.</param>
     /// <param name="userManager">The Jellyfin user manager.</param>
     /// <param name="dtoService">The Jellyfin DTO service.</param>
-    /// <param name="mediaEncoder">The Jellyfin media encoder used to read clip durations.</param>
-    public MomentsController(PawfinStore store, ILibraryManager libraryManager, IUserManager userManager, IDtoService dtoService, IMediaEncoder mediaEncoder)
+    /// <param name="mediaSourceManager">The Jellyfin media source manager.</param>
+    /// <param name="mediaEncoder">The Jellyfin media encoder used as a duration fallback.</param>
+    public MomentsController(PawfinStore store, ILibraryManager libraryManager, IUserManager userManager, IDtoService dtoService, IMediaSourceManager mediaSourceManager, IMediaEncoder mediaEncoder)
     {
         _store = store;
         _libraryManager = libraryManager;
         _userManager = userManager;
         _dtoService = dtoService;
+        _mediaSourceManager = mediaSourceManager;
         _mediaEncoder = mediaEncoder;
     }
 
@@ -135,6 +139,12 @@ public class MomentsController : ControllerBase
             return Forbid();
         }
 
+        var user = _userManager.GetUserById(userId);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
         var parent = _libraryManager.GetItemById(itemId);
         var momentsRoot = parent is null ? null : FindMomentsRoot(parent.Path);
         if (momentsRoot is null)
@@ -153,7 +163,8 @@ public class MomentsController : ControllerBase
             return NotFound();
         }
 
-        var runtimeTicks = await GetClipRuntimeTicks(path, cancellationToken).ConfigureAwait(false);
+        var clipItem = clip ?? GetOrCreateMomentVideo(path);
+        var runtimeTicks = await GetClipRuntimeTicks(clipItem, user, cancellationToken).ConfigureAwait(false);
         return runtimeTicks is > 0 ? Ok(runtimeTicks.Value) : NotFound();
     }
 
@@ -232,11 +243,11 @@ public class MomentsController : ControllerBase
         return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
     }
 
-    private async Task<long?> GetClipRuntimeTicks(string path, CancellationToken cancellationToken)
+    private async Task<long?> GetClipRuntimeTicks(BaseItem item, User user, CancellationToken cancellationToken)
     {
-        var file = new FileInfo(path);
+        var file = new FileInfo(item.Path);
         var cacheKey = file.FullName + "|" + file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
-        var probe = RuntimeCache.GetOrAdd(cacheKey, _ => ProbeClipRuntimeTicks(path, cacheKey, cancellationToken));
+        var probe = RuntimeCache.GetOrAdd(cacheKey, _ => ProbeClipRuntimeTicks(item, user, cacheKey, cancellationToken));
         long? runtimeTicks;
         try
         {
@@ -279,19 +290,36 @@ public class MomentsController : ControllerBase
         return runtimeTicks;
     }
 
-    private async Task<long?> ProbeClipRuntimeTicks(string path, string cacheKey, CancellationToken cancellationToken)
+    private async Task<long?> ProbeClipRuntimeTicks(BaseItem item, User user, string cacheKey, CancellationToken cancellationToken)
     {
         var acquired = false;
         try
         {
             await RuntimeProbeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             acquired = true;
+
+            // Resolve this like Jellyfin does for PlaybackInfo so the clip gets the
+            // same media-source metadata used by its normal stream pipeline.
+            var mediaSources = await _mediaSourceManager.GetPlaybackMediaSources(
+                item,
+                user,
+                true,
+                true,
+                cancellationToken).ConfigureAwait(false);
+            var runtimeTicks = mediaSources
+                .Select(source => source.RunTimeTicks)
+                .FirstOrDefault(ticks => ticks is > 0);
+            if (runtimeTicks is > 0)
+            {
+                return runtimeTicks;
+            }
+
             var mediaInfo = await _mediaEncoder.GetMediaInfo(
                 new MediaInfoRequest
                 {
                     MediaSource = new MediaSourceInfo
                     {
-                        Path = path,
+                        Path = item.Path,
                         Protocol = MediaProtocol.File,
                     },
                     MediaType = DlnaProfileType.Video,
