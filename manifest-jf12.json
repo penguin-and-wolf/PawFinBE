@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.0.15.0",
+        "changelog": "",
+        "targetAbi": "12.1.0.0",
+        "sourceUrl": "https://github.com/penguin-and-wolf/PawFinBE/releases/download/0.27/pawfin-backend_1.0.15.0_jf12.zip",
+        "checksum": "92b6a3a35f073f03f8ec77412c316e35",
+        "timestamp": "2026-10-17T11:36:49Z"
+      },
+      {
         "version": "1.0.14.0",
         "changelog": "",
         "targetAbi": "12.1.0.0",
