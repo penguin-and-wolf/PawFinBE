@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Jellyfin.Database.Implementations.Entities;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
@@ -250,6 +251,100 @@ public class MomentsController : ControllerBase
                 .FirstOrDefault(path => GetOrCreateMomentVideo(path).Id == clipId);
         var image = clipPath is null ? null : FindAnyImage(Path.GetDirectoryName(clipPath));
         return image is null ? NotFound() : PhysicalFile(image, ContentTypeFor(image));
+    }
+
+    /// <summary>Saves a captured frame as the miniature for a Moments clip.</summary>
+    /// <param name="itemId">The parent movie or series id.</param>
+    /// <param name="clipId">The Jellyfin clip item id.</param>
+    /// <param name="cancellationToken">The request cancellation token.</param>
+    /// <returns>No content when the miniature is saved.</returns>
+    [HttpPost("{itemId:guid}/Clips/{clipId:guid}/Image")]
+    [Consumes("image/jpeg")]
+    public async Task<IActionResult> SetClipImage(Guid itemId, Guid clipId, CancellationToken cancellationToken)
+    {
+        var userId = UserHelper.GetUserId(User);
+        if (userId == Guid.Empty || !_store.Read(data => data.MomentAllowedUsers.Contains(userId)))
+        {
+            return Forbid();
+        }
+
+        var parent = _libraryManager.GetItemById(itemId);
+        var momentsRoot = parent is null ? null : FindMomentsRoot(parent.Path);
+        if (momentsRoot is null)
+        {
+            return NotFound();
+        }
+
+        var clip = _libraryManager.GetItemById(clipId);
+        var clipPath = clip?.Path is not null && IsWithin(clip.Path, momentsRoot)
+            ? clip.Path
+            : Directory.EnumerateFiles(momentsRoot, "*", SearchOption.AllDirectories)
+                .Where(candidate => VideoExtensions.Contains(Path.GetExtension(candidate)))
+                .FirstOrDefault(candidate => GetOrCreateMomentVideo(candidate).Id == clipId);
+        if (clipPath is null)
+        {
+            return NotFound();
+        }
+
+        if (!string.Equals(Request.ContentType?.Split(';')[0], "image/jpeg", StringComparison.OrdinalIgnoreCase))
+        {
+            return Problem(title: "Unsupported image type", detail: "Send the captured frame as image/jpeg.", statusCode: 415);
+        }
+
+        var directory = Path.GetDirectoryName(clipPath);
+        if (directory is null)
+        {
+            return NotFound();
+        }
+        if (FindAnyImage(directory) is not null)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "This Moment already has a miniature",
+                Detail = "Remove the existing image before replacing it.",
+                Status = StatusCodes.Status409Conflict,
+            });
+        }
+
+        const int maximumImageBytes = 15 * 1024 * 1024;
+        await using var image = new MemoryStream();
+        var buffer = new byte[32 * 1024];
+        while (true)
+        {
+            var read = await Request.Body.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+            if (image.Length + read > maximumImageBytes)
+            {
+                return Problem(title: "Image is too large", detail: "The Moment miniature must be smaller than 15 MB.", statusCode: 413);
+            }
+            await image.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+        }
+
+        var bytes = image.ToArray();
+        if (bytes.Length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8 || bytes[^2] != 0xFF || bytes[^1] != 0xD9)
+        {
+            return Problem(title: "Invalid JPEG image", detail: "The captured frame could not be read as a JPEG image.", statusCode: 400);
+        }
+
+        var imagePath = Path.Combine(directory, "Miniature.jpg");
+        var temporaryPath = imagePath + "." + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + ".tmp";
+        try
+        {
+            await System.IO.File.WriteAllBytesAsync(temporaryPath, bytes, cancellationToken).ConfigureAwait(false);
+            System.IO.File.Move(temporaryPath, imagePath, overwrite: true);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(temporaryPath))
+            {
+                System.IO.File.Delete(temporaryPath);
+            }
+        }
+
+        return NoContent();
     }
 
     private async Task<long?> GetClipRuntimeTicks(BaseItem item, User user, CancellationToken cancellationToken)
