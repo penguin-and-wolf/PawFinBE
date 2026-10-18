@@ -8,7 +8,6 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Jellyfin.Database.Implementations.Entities;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
@@ -19,6 +18,7 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.MediaInfo;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using PenguinAndWolf.Pawfin.Model;
 using PenguinAndWolf.Pawfin.Services;
@@ -296,6 +296,7 @@ public class MomentsController : ControllerBase
         {
             return NotFound();
         }
+
         if (FindAnyImage(directory) is not null)
         {
             return Conflict(new ProblemDetails
@@ -307,7 +308,7 @@ public class MomentsController : ControllerBase
         }
 
         const int maximumImageBytes = 15 * 1024 * 1024;
-        await using var image = new MemoryStream();
+        using var image = new MemoryStream();
         var buffer = new byte[32 * 1024];
         while (true)
         {
@@ -316,10 +317,12 @@ public class MomentsController : ControllerBase
             {
                 break;
             }
+
             if (image.Length + read > maximumImageBytes)
             {
                 return Problem(title: "Image is too large", detail: "The Moment miniature must be smaller than 15 MB.", statusCode: 413);
             }
+
             await image.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
         }
 
