@@ -100,7 +100,7 @@ public class MomentsController : ControllerBase
         foreach (var groupPath in Directory.EnumerateDirectories(momentsRoot)
             .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase))
         {
-            var clipEntries = Directory.EnumerateFiles(groupPath, "*", SearchOption.AllDirectories)
+            var clipEntries = EnumerateMomentVideos(groupPath)
                 .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
                 .Select(path => new
                 {
@@ -350,6 +350,31 @@ public class MomentsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Checks whether a Moment has a matching sidecar SRT file.</summary>
+    /// <param name="itemId">The parent movie or series id.</param>
+    /// <param name="clipId">The clip id.</param>
+    /// <returns>No content when a matching sidecar exists; otherwise not found.</returns>
+    [HttpHead("{itemId:guid}/Clips/{clipId:guid}/Subtitle")]
+    public IActionResult HasClipSubtitle(Guid itemId, Guid clipId)
+    {
+        var path = FindClipPath(itemId, clipId);
+        return path is not null && FindSidecarSubtitle(path) is not null ? NoContent() : NotFound();
+    }
+
+    /// <summary>Streams the matching sidecar SRT file for a Moment.</summary>
+    /// <param name="itemId">The parent movie or series id.</param>
+    /// <param name="clipId">The clip id.</param>
+    /// <returns>The SRT file or not found.</returns>
+    [HttpGet("{itemId:guid}/Clips/{clipId:guid}/Subtitle")]
+    public IActionResult GetClipSubtitle(Guid itemId, Guid clipId)
+    {
+        var path = FindClipPath(itemId, clipId);
+        var subtitle = path is null ? null : FindSidecarSubtitle(path);
+        return subtitle is null
+            ? NotFound()
+            : PhysicalFile(subtitle, "application/x-subrip", enableRangeProcessing: true);
+    }
+
     private async Task<long?> GetClipRuntimeTicks(BaseItem item, User user, CancellationToken cancellationToken)
     {
         var file = new FileInfo(item.Path);
@@ -459,6 +484,50 @@ public class MomentsController : ControllerBase
         }
     }
 
+    private string? FindClipPath(Guid itemId, Guid clipId)
+    {
+        var userId = UserHelper.GetUserId(User);
+        if (userId == Guid.Empty || !_store.Read(data => data.MomentAllowedUsers.Contains(userId)))
+        {
+            return null;
+        }
+
+        var parent = _libraryManager.GetItemById(itemId);
+        var root = parent is null ? null : FindMomentsRoot(parent.Path);
+        if (root is null)
+        {
+            return null;
+        }
+
+        var clip = _libraryManager.GetItemById(clipId);
+        if (clip?.Path is not null && IsWithin(clip.Path, root))
+        {
+            return clip.Path;
+        }
+
+        return EnumerateMomentVideos(root).FirstOrDefault(candidate => GetOrCreateMomentVideo(candidate).Id == clipId);
+    }
+
+    private static string? FindSidecarSubtitle(string videoPath)
+    {
+        var directory = Path.GetDirectoryName(videoPath);
+        if (directory is null || !Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(videoPath);
+        return Directory.EnumerateFiles(directory)
+            .Where(path => string.Equals(Path.GetExtension(path), ".srt", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(path =>
+            {
+                var subtitleStem = Path.GetFileNameWithoutExtension(path);
+                return string.Equals(subtitleStem, stem, StringComparison.OrdinalIgnoreCase) ||
+                    subtitleStem.StartsWith(stem + ".", StringComparison.OrdinalIgnoreCase);
+            });
+    }
+
     private static string? FindMomentsRoot(string? itemPath)
     {
         if (string.IsNullOrWhiteSpace(itemPath))
@@ -504,6 +573,30 @@ public class MomentsController : ControllerBase
         };
         _libraryManager.CreateItem(video, null);
         return _libraryManager.GetItemById(id) ?? video;
+    }
+
+    // A folder represents one Moment. If it contains multiple video files, use
+    // the first one and do not descend into that folder; folders without a video
+    // may still contain nested Moments.
+    private static IEnumerable<string> EnumerateMomentVideos(string root)
+    {
+        var files = Directory.EnumerateFiles(root)
+            .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
+            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (files.Count > 0)
+        {
+            yield return files[0];
+            yield break;
+        }
+
+        foreach (var directory in Directory.EnumerateDirectories(root).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var path in EnumerateMomentVideos(directory))
+            {
+                yield return path;
+            }
+        }
     }
 
     private static string? FindMiniature(string directory) => FindNamedImage(directory, "Miniature") ??

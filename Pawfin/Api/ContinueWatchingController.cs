@@ -101,8 +101,7 @@ public class ContinueWatchingController : ControllerBase
                     continue;
                 }
 
-                foreach (var path in Directory.EnumerateFiles(momentsRoot, "*", SearchOption.AllDirectories)
-                    .Where(path => VideoExtensions.Contains(Path.GetExtension(path))))
+                foreach (var path in EnumerateMomentVideos(momentsRoot))
                 {
                     var clip = GetOrCreateMomentVideo(path);
                     var relative = Path.GetRelativePath(momentsRoot, path);
@@ -158,6 +157,27 @@ public class ContinueWatchingController : ControllerBase
                 return dto;
             }).ToList();
         return new QueryResult<BaseItemDto>(resumable.Count, offset, page);
+    }
+
+    private static IEnumerable<string> EnumerateMomentVideos(string root)
+    {
+        var files = Directory.EnumerateFiles(root)
+            .Where(path => VideoExtensions.Contains(Path.GetExtension(path)))
+            .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (files.Count > 0)
+        {
+            yield return files[0];
+            yield break;
+        }
+
+        foreach (var directory in Directory.EnumerateDirectories(root).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var path in EnumerateMomentVideos(directory))
+            {
+                yield return path;
+            }
+        }
     }
 
     private static string? FindMomentsRoot(string? itemPath)
